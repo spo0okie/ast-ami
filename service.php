@@ -3,14 +3,12 @@
 /* Файл сбора сообщений из AMI и слива в WS */
 
 //прикладные функции работы с логом файлами и проч. 
-//можно убрать и вырезать все обращения к пропавшим функциям 
-//и функционал не изменится, изменится только интерфейс
-//а вообще библиотека итак изрядно почищена от ненужного
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'funcs.inc.php');	
-//библиотека работы с WebSocket
-require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'funcs.ws.php');
 //библиотека работы с астериском
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'phpagi.php');
+//класс коннекторов к получателям данных
+require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.extConnector.php');	
+
 
 //папка логов
 $logdir=$piddir='c:\\temp\\';	//куда будем писать логи и хартбиты сервисов
@@ -18,7 +16,7 @@ $globLogFile=$logdir.'/'.basename(__FILE__).'.msg.log';
 $globErrFile=$logdir.'/'.basename(__FILE__).'.err.log';
 initLog();
 
-$usage=basename(__FILE__)." srvaddr:192.168.0.1 srvport:5038 srvuser:username srvpass:secret wsaddr:192.168.0.2 wsport:8000 wschan:channel1\n"
+$usage=basename(__FILE__)." srvaddr:192.168.0.1 srvport:5038 srvuser:username srvpass:secret [wsaddr:192.168.0.2 wsport:8000 wschan:channel1]\n"
 	."srvaddr:192.168.0.1  - AMI server address\n"
 	."srvport:5038         - AMI interface port\n"
 	."srvuser:username     - AMI user\n"
@@ -31,42 +29,31 @@ if (!strlen($srvaddr=get_param('srvaddr'))) criterr($usage);
 if (!strlen($srvport=get_param('srvport'))) criterr($usage);
 if (!strlen($srvuser=get_param('srvuser'))) criterr($usage);
 if (!strlen($srvpass=get_param('srvpass'))) criterr($usage);
-if (!strlen($wsaddr =get_param('wsaddr')))  criterr($usage);
-if (!strlen($wsport =get_param('wsport')))  criterr($usage);
-if (!strlen($wschan =get_param('wschan')))  criterr($usage);
 
-$p=basename(__FILE__).'('.$wschan.'): '; //msg prefix
+
+$globConnParams=array();
+
+//Используем ли мы вебсокеты?
+if (strlen($wsaddr=get_param('wsaddr'))) {
+	//если указан сервер вебсокетов, то используем. Тогда еще нужны учетные данные
+	if (!strlen($wsport =get_param('wsport')))  criterr($usage);
+	if (!strlen($wschan =get_param('wschan')))  criterr($usage);	
+	//библиотека работы с WebSocket
+	require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'funcs.ws.php');
+	//в список параметров подключения к внешним получалям данных добавляем вебсокеты
+	$globConnParams[]=array('wsaddr'=>$wsaddr,'wsport'=>$wsport,'wschan'=>$wschan);
+}
+
+
+
+
 
 
 /*	ФУНКЦИИ РАБОТЫ С КАНАЛАМИ АСТЕРИСКА */
 
-function chan_getTech($name, $defEmpty=true) 
-{// вертает технологию канала, 
- // если распарсить строку не получится то вернуть 
- //(пусто если $defEmpty=true, иначе вернуть всю строку)
-	$tokens=explode('/',$name);
-	if (count($tokens)>1) {	//все ОК
-		return $tokens[0];
-	} else 					//чет не то
-		return $defEmpty?NULL:$name;
-	
-}
 
-function chan_ckTech($name)
-{//проверят интересен ли нам канал по этой технологии
-	return !(chan_getTech($name)=='Local');	//отфильтруем для начала только локальные каналы, вроде по документации только они создаются синтетически
-}
 
-function src_from_name($name)
-{//ищем номер звонящего абонента в имени канала
-	if (!strlen($name)) return NULL;		//пустая строка
-	$slash=strpos($name,'/'); 
-	$dash=strrpos($name,'-'); 
-	$at=strpos($name,'@'); //ищем / - @ в строке
-	if (!$slash||!($at||$dash)) return NULL;		//несоотв синтаксиса
-	$numend=($at&&$dash)?min($at,$dash):max($at,$dash);
-	return substr($name,$slash+1,$numend-$slash-1);
-}
+
 
 function src_from_par($par)
 {//ищем номер звонящего абонента в параметрах ивента
@@ -88,29 +75,6 @@ function chan_dst($evt,$par)
 	return NULL;
 }
 
-function chan_state($par)
-{//возвращает статус канала из параметров ивента, 
- //но только если этотстатус нас интересует
- //можно раскоментить и другие статусы, но нужно потом их обрабатывать
-		$states=array(
-		//'Down'=>NULL,				//Channel is down and available
-		//'Rsrvd'=>NULL,			//Channel is down, but reserved
-		//'OffHook'=>NULL,			//Channel is off hook
-		//'Dialing'=>NULL,			//The channel is in the midst of a dialing operation
-		'Ring'=>'Ring',				//The channel is ringing
-		'Ringing'=>'Ringing',		//The remote endpoint is ringing. Note that for many channel technologies, this is the same as Ring.
-		'Up'=>'Up',					//A communication path is established between the endpoint and Asterisk
-		//'Busy'=>NULL,				//A busy indication has occurred on the channel
-		//'Dialing Offhook'=>NULL,	//Digits (or equivalent) have been dialed while offhook
-		//'Pre-ring'=>NULL,			//The channel technology has detected an incoming call and is waiting for a ringing indication
-		//'Unknown'=>NULL			//The channel is an unknown state 
-	);
-		
-	if 	(isset($par['ChannelStateDesc'])&&strlen($state=$par['ChannelStateDesc'])) //если статус в ивенте указан
-		return isset($states[$state])?$states[$state]:NULL;	//возвращаем его если он есть в фильтре
-	
-	return NULL; //на нет и суда нет
-}
 
 
 function chan_name($par)
@@ -238,7 +202,7 @@ function AMI_defaultevent_handler($evt, $par, $server=NULL, $port=NULL)
 	//всякими сообщениями от астериска, не только теми которые по звонкам
 	//а вообще все что он шлет (а он шлет много)...
 	//но для понимания картины событий можно и глянуть время от времени
-	//msg('Got evt "'.$evt.'"');
+	msg('Got evt "'.$evt.'"');
 	//print_r($par);
 	con_rotor();					//update con
 	global $wschan;
@@ -262,11 +226,11 @@ function ws_send($caller, $callee, $evt)
 	$ws->sendData('{"type":"event","caller":"'.$caller.'","callee":"'.$callee.'","event":"'.$evt.'"}');
 }
 
+$connector = new globDataConnector($globConnParams);
+$p=basename(__FILE__).'('.$connector->getType().'): '; //msg prefix
 
 //собственно понеслась
-msg($p.'Script started');
-msg($p.'Initializing chanlist');
-$chanlist=array();
+//msg($p.'Script started');
 
 while (true) {
 	pidWriteSvc(basename(__FILE__));//heartbeat
@@ -285,29 +249,24 @@ while (true) {
 	msg($p.'Connecting AMI inteface ... ');
 	if ($astman->connect()) {
 		
-		msg($p.'Connecting WS ... ');
-		$ws = new WebsocketClient;
-		if ($ws->connect($wsaddr, $wsport, '/', 'server')) {
-			msg($p.'Subscribing channel in WS ... ');
-			$ws->sendData('{"type":"subscribe","channel":"'.$wschan.'"}');
+		msg($p.'Connecting data receivers ... ');
+		if ($connector->connect()) {
 
 			msg($p.'Switching AMI events ON ... ',1);
 				$astman->Events('on');
 
 			msg($p.'AMI event waiting loop ... ');
 				pidWriteSvc(basename(__FILE__));//heartbeat
-				while (!$astman->socket_error&&$ws->checkConnection())	//пока с соединениями все ок
+				while (!$astman->socket_error&&$connector->checkConnection())	//пока с соединениями все ок
 					$astman->wait_response();	//обрабатываем события
 
 			if ($astman->socket_error) msg($p.'AMI Socket error!');
-			if ($ws->checkConnection()) msg($p.'WS Socket error!');
 			msg($p.'Loop exited. ');
 			$astman->disconnect();
-			$ws->disconnect();
-		} else msg ($p.'Err connecting WS.');
+			$connector->disconnect();
+		} else msg ($p.'Err connecting data recivers');
 	} else msg ($p.'Err connecting AMI.');
 	unset($astman);
-	unset($ws);
 	msg($p.'Reconnecting ... ');
 	sleep(1);
 }

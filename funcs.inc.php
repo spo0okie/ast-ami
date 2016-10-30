@@ -1,5 +1,6 @@
 <?php
 	//options
+	
 	//where is the logs stored
 	date_default_timezone_set('Asia/Yekaterinburg');
 	$logdir='/var/log';
@@ -44,27 +45,6 @@
 		$globVerbose=get_param('verbose')||$dummyMode;
 		$globDebugLevel=max(get_param('debug'),$debug);
 	}
-
-	function initAgi() {
-		global $dummyMode;
-		if ($dummyMode) return; //disable AGI in dummy mode
-		global $agi;
-		global $callerid;
-		global $exten;
-		global $channel;
-		global $UID;
-		global $CSID;
-		global $p;
-		$agi = new AGI();	
-		initDB(); //нужно для поиска подменных CallerID в бд
-		msg($p.'Got EXTEN:	'.($exten=cmd_getExten()),5);
-		msg($p.'Got CHANNEL:'.($channel=cmd_getChan()),5);
-		msg($p.'Got CID:	'.($callerid=cmd_getCID()),5);
-		msg($p.'Got UID:	'.($UID=cmd_getUID()),5);
-		msg($p.'Got CALL ID:'.($CSID=cmd_getID()),5);
-	}
-	
-	function initDB() {global $p;	db_connect_safe($p.'can not continue without DB connetion!');}
 
 	/*
 	тулкит для парсинга коммандной строки, в которой передаем параметры не по очередности а по именам
@@ -170,12 +150,6 @@
 		}
 	}
 
-	function msgagi($text,$debug=0,$err=0) {
-		global $globDebugLevel;
-		global $globAGIVerbose;
-		global $agi;
-		if (($globAGIVerbose)&&($debug<=$globDebugLevel)&&isset($agi)) $agi->verbose($text);
-	}
 
 
 	function msg($text,$debug=0,$err=0) { //verbose and log to file if need
@@ -199,7 +173,7 @@
 	}
 
 	function getCurrentProcs($procname)
-	{/* возвращает текущее количество процессов парсинга/сжатия звонков*/
+	{/* возвращает текущее количество процессов $procname */
 		$p="getCurrentProcs($procname): ";
 		$cmd='ps ax|grep '.$procname.'|grep -v grep|wc -l';
 		msg($p.'running '.$cmd,5);
