@@ -8,10 +8,16 @@ require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'funcs.inc.php');
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'phpagi.php');
 //класс коннекторов к получателям данных
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.extConnector.php');	
+//класс коннекторa к asterisk AMI
+require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.chans.php');	
 
 
 //папка логов
-$logdir=$piddir='c:\\temp\\';	//куда будем писать логи и хартбиты сервисов
+$tmp='/tmp/';
+if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+    $tmp='c:\\temp\\ ';
+} 
+$logdir=$piddir=$tmp;	//куда будем писать логи и хартбиты сервисов
 $globLogFile=$logdir.'/'.basename(__FILE__).'.msg.log';
 $globErrFile=$logdir.'/'.basename(__FILE__).'.err.log';
 initLog();
@@ -52,37 +58,6 @@ if (strlen($wsaddr=get_param('wsaddr'))) {
 /*	ФУНКЦИИ РАБОТЫ С КАНАЛАМИ АСТЕРИСКА */
 
 
-
-
-
-function src_from_par($par)
-{//ищем номер звонящего абонента в параметрах ивента
-	if 	(isset($par['CallerIDNum'])&&strlen($num=$par['CallerIDNum'])) return $num;
-	return NULL;
-}
-
-function chan_src($name,$par=NULL)
-{//вертает номер звонящего абонента из имени канала, или CallerID
-	if (strlen($fromname=src_from_name($name))&&is_numeric($fromname)) return $fromname;
-	if (isset($par)&&strlen($frompar=src_from_par($par))&&is_numeric($frompar)) return $frompar;
-	return NULL;
-}
-
-function chan_dst($evt,$par)
-{//ищем номер вызываемого абонента в параметрах ивента
-	if (isset($par['ConnectedLineNum'])&&strlen($remote=$par['ConnectedLineNum'])&&is_numeric($remote)) return $remote;
-	if (isset($par['Exten'])&&strlen($remote=$par['Exten'])&&is_numeric($remote)) return $remote;
-	return NULL;
-}
-
-
-
-function chan_name($par)
-{//возвращает имя канала из параметров ивента с учетом фильтра технологий соединения
-	if (isset($par['Channel']) && strlen($chan=$par['Channel']) && chan_ckTech($chan)) return $chan;
-	return NULL;
-}
-
 function chan_dump_all()
 {//дампит в консоль список известных на текущий момент соединений с их статусами
 	global $chanlist;
@@ -117,37 +92,9 @@ function chan_ws($name)
 	}
 }
 
-function chan_upd($evt,$par)
-{//обновляем информацию о канале новыми данными
-	global $chanlist;
-	if (strlen($chan=chan_name($par))) //имя канала вернется если в пераметрах события оно есть и если канал при этом не виртуальный
-	{
-		if (!isset($chanlist[$chan])) $chanlist[$chan]=array('src'=>NULL,'dst'=>NULL,'state'=>NULL);		//создаем канал если его еще нет в списке
-		$src	=chan_src($chan,$par);	//ищем вызывающего
-		$dst	=chan_dst($chan,$par);	//ищем вызываемого
-		$oldstate=$chanlist[$chan]['state'];	//запоминаем старый статус
-		
-		//вариант однократного обновления данных о номерах в канале
-		//ищем абонентов до тех пор пока не найдем, следующие изменения абонентов игнорируем
-		if (!isset($chanlist[$chan]['src'])&&isset($src)) $chanlist[$chan]['src']=$src;
-		if (!isset($chanlist[$chan]['dst'])&&isset($dst)) $chanlist[$chan]['dst']=$dst;
-		
-		//вариант многократного обновления
-		//if (isset($src)) $chanlist[$chan]['src']=$src;
-		//if (isset($dst)) $chanlist[$chan]['dst']=$dst;
-		
-		$chanlist[$chan]['state']=chan_state($par);//устанавливаем статус
-		
-		//если у нас накопился законченный набор информации 
-		//и статус отличается от старого
-		if (isset($chanlist[$chan]['src'])&&isset($chanlist[$chan]['dst'])&&isset($chanlist[$chan]['state'])&&($oldstate!==$chanlist[$chan]['state']))	{
-			chan_dump($chan);	//сообщаем об этом радостном событии в консольку
-			chan_ws($chan);		//и на сервер вебсокетов
-		}
-	}
-}
-
 /*	ОБРАБОТЧИКИ СОБЫТИЙ ПОЛУЧАЕМЫХ ОТ АСТЕРИСКА */
+
+$chans = new chanList();
 
 function evt_def($evt, $par, $server=NULL, $port=NULL)
 {	/*	обработчик события AMI по умолчанию 
@@ -185,7 +132,7 @@ function evt_hangup($evt,$par)
 function con_rotor()
 {	//рисует вращающийся курсор, дабы было в консоли было видно что процесс жив
 	global $phpagirotor;
-	$sym=array('| ','/ ','- ','--',' -',' \\',' |',' /',' -','--','- ','\\ ');
+	$sym=array('| ','/ ','- ','--',' -',' \\ ',' |',' /',' -','--','- ','\\ ');
 	if (!isset($phpagirotor)) $phpagirotor=0;
 	$phpagirotor %= count($sym);
 	echo $sym[($phpagirotor++)]."\r";
@@ -203,7 +150,7 @@ function AMI_defaultevent_handler($evt, $par, $server=NULL, $port=NULL)
 	//а вообще все что он шлет (а он шлет много)...
 	//но для понимания картины событий можно и глянуть время от времени
 	msg('Got evt "'.$evt.'"');
-	//print_r($par);
+	print_r($par);
 	con_rotor();					//update con
 	global $wschan;
 	pidWriteSvc(basename(__FILE__).'.'.$wschan);//heartbeat file
@@ -227,6 +174,7 @@ function ws_send($caller, $callee, $evt)
 }
 
 $connector = new globDataConnector($globConnParams);
+$ast = new astConnector(array('server'=>$srvaddr,'port'=>$srvport,'username'=>$srvuser,'secret'=>$srvpass));
 $p=basename(__FILE__).'('.$connector->getType().'): '; //msg prefix
 
 //собственно понеслась
@@ -234,39 +182,27 @@ $p=basename(__FILE__).'('.$connector->getType().'): '; //msg prefix
 
 while (true) {
 	pidWriteSvc(basename(__FILE__));//heartbeat
-	
-	msg($p.'Init AMI interface class ... ',1);
-		$astman = new AGI_AsteriskManager(null,array('server'=>$srvaddr,'port'=>$srvport,'username'=>$srvuser,'secret'=>$srvpass));
 
-	msg($p.'Init AMI event handlers ... ',1);
-		$astman->add_event_handler('state',			'evt_def');
-		$astman->add_event_handler('newstate',		'evt_def');
-		$astman->add_event_handler('newcallerid',	'evt_def');
-		$astman->add_event_handler('newchannel',	'evt_def');
-		$astman->add_event_handler('hangup',		'evt_hangup');
-		$astman->add_event_handler('rename',		'evt_rename');
+	if ($ast->connect()) {
 
-	msg($p.'Connecting AMI inteface ... ');
-	if ($astman->connect()) {
-		
 		msg($p.'Connecting data receivers ... ');
 		if ($connector->connect()) {
 
-			msg($p.'Switching AMI events ON ... ',1);
-				$astman->Events('on');
-
 			msg($p.'AMI event waiting loop ... ');
 				pidWriteSvc(basename(__FILE__));//heartbeat
-				while (!$astman->socket_error&&$connector->checkConnection())	//пока с соединениями все ок
-					$astman->wait_response();	//обрабатываем события
 
-			if ($astman->socket_error) msg($p.'AMI Socket error!');
+				while ($ast->checkConnection()&&$connector->checkConnection())	//пока с соединениями все ок
+					$ast->waitResponse();	//обрабатываем события
+
 			msg($p.'Loop exited. ');
-			$astman->disconnect();
 			$connector->disconnect();
+
 		} else msg ($p.'Err connecting data recivers');
+
 	} else msg ($p.'Err connecting AMI.');
-	unset($astman);
+
+	$ast->disconnect();
+
 	msg($p.'Reconnecting ... ');
 	sleep(1);
 }
