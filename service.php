@@ -58,27 +58,6 @@ if (strlen($wsaddr=get_param('wsaddr'))) {
 /*	ФУНКЦИИ РАБОТЫ С КАНАЛАМИ АСТЕРИСКА */
 
 
-function chan_dump_all()
-{//дампит в консоль список известных на текущий момент соединений с их статусами
-	global $chanlist;
-	echo "chan list {\n";
-	foreach ($chanlist as $name=>$chan) chan_dump($name);
-	echo "}\n";
-}
-
-function chan_dump($name)
-{//дампит в консоль один канал
-	global $chanlist;
-	if (isset($chanlist[$name])) {
-		switch ($chanlist[$name]['state']){
-			case 'Ring':	$st=' --> '; break;
-			case 'Ringing':	$st=' <-- '; break;
-			case 'Up':		$st='<-!->'; break;
-			default:		$st=' ??? '; break;
-		}
-		echo $name.':	'.$chanlist[$name]['src'].$st.$chanlist[$name]['dst']." \n";
-	}
-}
 
 function chan_ws($name)
 {//пишем в вебсокеты информацию о канале
@@ -106,26 +85,26 @@ function evt_def($evt, $par, $server=NULL, $port=NULL)
 	//на которые повешен этот обработчик
 	//msg('Got evt "'.$evt.'"');
 	//print_r($par);
-	chan_upd($evt,$par);
+	global $chans;
+	$chans->upd($par);
+	
 	//chan_dump_all();
 	AMI_defaultevent_handler($evt,$par);
 }
 
 function evt_rename($evt,$par)
 {//обработчик события о переименовании канала
-	global $chanlist;
-	//если канал переименовался не в виртуальный - 
-	//создаем его экземпляр с новым именем
-	if (strlen($chan=chan_name($par)) && isset($par['Newname']) && chan_ckTech($par['Newname']))$chanlist[$par['Newname']]=$chanlist[$chan]; 
-	//старый удаляем
-	evt_hangup($evt,$par);
+	global $chans;
+	$chans->ren($par);
+	//chan_dump_all();
+	AMI_defaultevent_handler($evt,$par);
 }
 
 function evt_hangup($evt,$par)
 {//обработчик события о смерти канала
-	global $chanlist;
-	if (strlen($chan=chan_name($par)))	unset($chanlist[$chan]);
-	//chan_dump_all(); //если следим за списком каналов, то после чьейто смерти он тоже меняется
+	global $chans;
+	$chans->ren($par);
+	//chan_dump_all();
 	AMI_defaultevent_handler($evt,$par);
 }
 
@@ -149,11 +128,11 @@ function AMI_defaultevent_handler($evt, $par, $server=NULL, $port=NULL)
 	//всякими сообщениями от астериска, не только теми которые по звонкам
 	//а вообще все что он шлет (а он шлет много)...
 	//но для понимания картины событий можно и глянуть время от времени
-	msg('Got evt "'.$evt.'"');
-	print_r($par);
+//	msg('Got evt "'.$evt.'"');
+//	print_r($par);
 	con_rotor();					//update con
-	global $wschan;
-	pidWriteSvc(basename(__FILE__).'.'.$wschan);//heartbeat file
+//	global $wschan;
+	pidWriteSvc(basename(__FILE__));//heartbeat file
 	//файл сердцебиения сервиса. 
 	//в нем лежит PID процесса
 	//нужен для отслеживания жизни процесса
