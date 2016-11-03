@@ -6,8 +6,8 @@
 	$logdir='/var/log';
 	$piddir='/tmp';
 	//logfiles names
-	$msgscriptlog=$logdir.'/spoo.ast.msg.log';
-	$msgscripterr=$logdir.'/spoo.ast.msg.err.log';
+	$msgscriptlog=$logdir.DIRECTORY_SEPARATOR.'spoo.ast.msg.log';
+	$msgscripterr=$logdir.DIRECTORY_SEPARATOR.'spoo.ast.msg.err.log';
 	//where from scrip is running
 	$scriptdir=dirname(__FILE__);
 
@@ -62,7 +62,7 @@
 	тулкит для работы с ПИДами
 	*/
 	function pidGetFname($base)		//файл для хранения пида
-	{	global $piddir; return $piddir.'/spoo.'.$base.'.pid';}
+	{	global $piddir; return $piddir.DIRECTORY_SEPARATOR.'spoo.'.$base.'.pid';}
 
 	function pidWrite($file)
 	{/*	записать пид в файл*/

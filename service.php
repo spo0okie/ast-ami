@@ -15,11 +15,11 @@ require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.chans.php');
 //папка логов
 $tmp='/tmp/';
 if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-    $tmp='c:\\temp\\ ';
+    $tmp='c:\\temp\\';
 } 
 $logdir=$piddir=$tmp;	//куда будем писать логи и хартбиты сервисов
-$globLogFile=$logdir.'/'.basename(__FILE__).'.msg.log';
-$globErrFile=$logdir.'/'.basename(__FILE__).'.err.log';
+$globLogFile=$logdir.DIRECTORY_SEPARATOR.basename(__FILE__).'.msg.log';
+$globErrFile=$logdir.DIRECTORY_SEPARATOR.basename(__FILE__).'.err.log';
 initLog();
 
 $usage=basename(__FILE__)." srvaddr:192.168.0.1 srvport:5038 srvuser:username srvpass:secret [wsaddr:192.168.0.2 wsport:8000 wschan:channel1]\n"
@@ -50,6 +50,16 @@ if (strlen($wsaddr=get_param('wsaddr'))) {
 	$globConnParams[]=array('wsaddr'=>$wsaddr,'wsport'=>$wsport,'wschan'=>$wschan);
 }
 
+if (strlen($ocisrv=get_param('ocisrv'))) {
+	//если указан сервер вебсокетов, то используем. Тогда еще нужны учетные данные
+	if (!strlen($ocisvc =get_param('ocisvc')))  criterr($usage);
+	if (!strlen($ociuser =get_param('ociuser')))  criterr($usage);	
+	if (!strlen($ocipass =get_param('ocipass')))  criterr($usage);	
+	//библиотека работы с WebSocket
+	require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'funcs.ws.php');
+	//в список параметров подключения к внешним получалям данных добавляем вебсокеты
+	$globConnParams[]=array('ocisrv'=>$ocisrv,'ocisvc'=>$ocisvc,'ociuser'=>$ociuser,'ocipass'=>$ocisrv);
+}
 
 
 

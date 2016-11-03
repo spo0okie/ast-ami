@@ -24,6 +24,63 @@
 		abstract public function getType();		
 	}
 	
+	class ociDataConnector extends abstractDataConnector  {
+		private $p='ociDataConnector: '; //log prefix
+		private $server;
+		private $service;
+		private $user;
+		private $password;
+		private $oci;
+		private $ws;
+		
+		public function __construct($conParams=null) {
+			if (
+				!isset($conParams['ocisrv'])||
+				!isset($conParams['ocisvc'])||
+				!isset($conParams['ociuser'])||
+				!isset($conParams['ocipass'])
+				) {
+				msg($this->p.'Initialization error: Incorrect connection parameters given!');
+				return NULL;					
+			}
+			$this->server=	$conParams['ocisrv'];
+			$this->service=	$conParams['ocisvc'];
+			$this->user=	$conParams['ociuser'];
+			$this->password=$conParams['ocipass'];
+			
+			$this->p='ociDataConnector('.$this->server.'/'.$this->service.'): ';
+			msg($this->p.'Initialized');
+		}
+		
+		public function connect() {
+			msg($this->p.'Connecting ... ');
+			$this->oci = oci_connect($this->user,$this->password,$this->server.'/'.$this->service);
+			if (!$this->oci) return false;
+		}
+
+		public function disconnect() {
+			msg($this->p.'Disconnecting ... ');
+			oci_close($this->oci);
+			unset ($ws);
+		}
+		
+		public function checkConnection() {
+			/*if ($this->ws->checkConnection()) {
+				msg($this->p.'WS Socket error!');
+				return true;
+			} else return false;*/
+		}
+		
+		public function sendData($data) {
+			var_dump($data);
+		}
+		
+		public function getType() {return 'oci';}
+	}
+
+
+
+	
 	class wsDataConnector extends abstractDataConnector  {
 		private $p='wsDataConnector: '; //log prefix
 		private $wsaddr;
@@ -77,6 +134,7 @@
 	}
 
 
+
 	class globDataConnector extends abstractDataConnector  {
 		private $p='globDataConnector: ';
 		private $connectors;
@@ -88,6 +146,8 @@
 			foreach ($conParams as $dest) {
 				if (isset($dest['wsaddr'])) 
 					$this->connectors[] = new wsDataConnector($dest);	
+				if (isset($dest['ocisrv'])) 
+					$this->connectors[] = new ociDataConnector($dest);	
 			}
 			
 			msg($this->p.'Initialized '.count($this->connectors).' subconnectors.');
@@ -95,13 +155,13 @@
 		
 		public function connect() {
 			msg($this->p.'Connecting data receivers ... ',2);
-			foreach ($this->connectors as $conn) if (!$conn->connect) return false;
+			foreach ($this->connectors as $conn) if (!$conn->connect()) return false;
 			return true;
 		}
 
 		public function disconnect() {
 			msg($this->p.'Disconnecting data receivers ... ',2);
-			foreach ($this->connectors as $conn) $conn->disconnect;
+			foreach ($this->connectors as $conn) $conn->disconnect();
 		}
 
 		public function checkConnection() {
