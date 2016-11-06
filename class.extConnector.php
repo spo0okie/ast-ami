@@ -54,8 +54,23 @@
 		
 		public function connect() {
 			msg($this->p.'Connecting ... ');
-			$this->oci = oci_connect($this->user,$this->password,$this->server.'/'.$this->service);
-			if (!$this->oci) return false;
+			//$this->oci = oci_connect($this->user,$this->password,$this->server.'/'.$this->service);
+			$this->oci = oci_connect('ics','Trk_icsPwd','srv-db.nppx.local/orcl');
+			if (!$this->oci) {
+			echo "CANNOT CONNECT ORACLE!";
+			return false;
+			} else {
+				$stid = oci_parse($this->oci, 'SELECT * FROM dual');
+				oci_execute($stid);
+			
+			while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)) {
+			        foreach ($row as $name=>$item) {
+			                echo "$name:$item	";
+			        }
+			        echo "\n";
+			}
+			return true;
+			}
 		}
 
 		public function disconnect() {
