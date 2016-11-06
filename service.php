@@ -27,11 +27,13 @@ $usage="Correct usage is:\n"
 	."srvaddr:192.168.0.1  - AMI server address\n"
 	."srvport:5038         - AMI interface port\n"
 	."srvuser:username     - AMI user\n"
-	."srvpass:secret       - AMI password\n"
+	."srvpass:secret       - AMI password\n\n"
+	
 	."- to translate to WebSockets channel use:"
 	."wsaddr:192.168.0.2   - WebSockets server address\n"
 	."wsport:8000          - WebSockets server port\n"
-	."wschan:channel1      - WebSockets channel to post AMI messages\n"
+	."wschan:channel1      - WebSockets channel to post AMI messages\n\n"
+	
 	."- to translate to Oracle table use:"
 	."ocisrv:127.0.0.1     - Oracle server address\n"
 	."ociinst:orcl         - Oracle server instance\n"
@@ -100,7 +102,7 @@ function evt_def($evt, $par, $server=NULL, $port=NULL)
 	//если раскомментировать то что ниже, то в консольке можно будет
 	//посмотреть какая нам информация приходит с теми событиями
 	//на которые повешен этот обработчик
-	//msg('Got evt "'.$evt.'"');
+	msg('Got evt "'.$evt.'"');
 	//print_r($par);
 	global $chans;
 	$chans->upd($par);
@@ -145,10 +147,9 @@ function AMI_defaultevent_handler($evt, $par, $server=NULL, $port=NULL)
 	//всякими сообщениями от астериска, не только теми которые по звонкам
 	//а вообще все что он шлет (а он шлет много)...
 	//но для понимания картины событий можно и глянуть время от времени
-//	msg('Got evt "'.$evt.'"');
-//	print_r($par);
+	//msg('Got evt "'.$evt.'"');
+	//print_r($par);
 	con_rotor();					//update con
-//	global $wschan;
 	pidWriteSvc(basename(__FILE__));//heartbeat file
 	//файл сердцебиения сервиса. 
 	//в нем лежит PID процесса
@@ -171,9 +172,9 @@ function ws_send($caller, $callee, $evt)
 
 
 $connector = new globDataConnector($globConnParams);
-$chans->connect($connector);
 $ast = new astConnector(array('server'=>$srvaddr,'port'=>$srvport,'username'=>$srvuser,'secret'=>$srvpass));
 $p=basename(__FILE__).'('.$connector->getType().'): '; //msg prefix
+$chans->connect($connector);
 
 //собственно понеслась
 //msg($p.'Script started');

@@ -118,13 +118,15 @@ class chanList {
 	public function connect($connector)
 	{//подключаем внешний коннектор куда кидать обновления
 		$this->connector = $connector;
-		msg($this->p().'External connector attached.');
+		msg($this->p().'External connector attached. ('.$this->connector->getType().')');
 	}
 
-	public function sendData($data)
+	private function sendData($data)
 	{//подключаем внешний коннектор куда кидать обновления
-		if (isset($this->connector))
+		if (isset($this->connector)) {
+			msg($this->p().'Sending data to connector.');
 			$this->connector->sendData($data);
+		}
 		else
 			msg($this->p().'External connector not attached! Cant send updates!');
 	}
@@ -142,12 +144,16 @@ class chanList {
 
 			//вариант однократного обновления данных о номерах в канале
 			//ищем абонентов до тех пор пока не найдем, следующие изменения абонентов игнорируем
-			//if (!isset($this->list[$cname]['src'])&&isset($src)) $this->list[$cname]['src']=$src;
-			//if (!isset($this->list[$cname]['dst'])&&isset($dst)) $this->list[$cname]['dst']=$dst;
+			/*информация о канале формируется единожды. т.е. как только мы узнали src и dst
+			 * больше их не меняем. обновляем данные только о неполных с точки зрения информации
+			 * каналах */
+			if (!isset($this->list[$cname]['src'])&&isset($src)) $this->list[$cname]['src']=$src;
+			if (!isset($this->list[$cname]['dst'])&&isset($dst)) $this->list[$cname]['dst']=$dst;
 
 			//вариант многократного обновления
-			if (isset($src)) $this->list[$cname]['src']=$src;
-			if (isset($dst)) $this->list[$cname]['dst']=$dst;
+			/* обновляем информацию всегда, когда есть что обновить (больше обновлений) */
+			//if (isset($src)) $this->list[$cname]['src']=$src;
+			//if (isset($dst)) $this->list[$cname]['dst']=$dst;
 
 			$this->list[$cname]['state']=$evt->getState();//устанавливаем статус
 
@@ -160,7 +166,7 @@ class chanList {
 		 	}
 		}
 		unset ($evt);
-		$this->dumpAll();
+		//$this->dumpAll();
 	}
 	
 	public function ren($par)
@@ -209,7 +215,6 @@ class chanList {
 			echo $name.':   '.$this->list[$name]['src'].$st.$this->list[$name]['dst']." \n";
 		}
 	}
-    
 }
 
 class astConnector {

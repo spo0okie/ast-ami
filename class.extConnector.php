@@ -85,6 +85,7 @@
 		}
 		
 		public function sendData($data) {
+			msg($this->p.'Sending data:');
 			var_dump($data);
 		}
 
@@ -188,7 +189,11 @@
 
 		
 		public function sendData($data) {
-			foreach ($this->connectors as $conn) $conn->sendData($data);
+			msg($this->p.'Sending data to '.count($this->connectors).' subconnectors ... ',2);
+			foreach ($this->connectors as $conn) {
+				msg($this->p.'Push!',2);
+				$conn->sendData($data);
+			}
 		}
 		
 		public function getType() {
