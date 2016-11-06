@@ -27,50 +27,34 @@
 	class ociDataConnector extends abstractDataConnector  {
 		private $p='ociDataConnector: '; //log prefix
 		private $server;
-		private $service;
+		private $instance;
 		private $user;
 		private $password;
 		private $oci;
 		private $ws;
-		
+
 		public function __construct($conParams=null) {
 			if (
 				!isset($conParams['ocisrv'])||
-				!isset($conParams['ocisvc'])||
+				!isset($conParams['ociinst'])||
 				!isset($conParams['ociuser'])||
 				!isset($conParams['ocipass'])
-				) {
+			) {
 				msg($this->p.'Initialization error: Incorrect connection parameters given!');
 				return NULL;					
 			}
 			$this->server=	$conParams['ocisrv'];
-			$this->service=	$conParams['ocisvc'];
+			$this->instance=$conParams['ociinst'];
 			$this->user=	$conParams['ociuser'];
 			$this->password=$conParams['ocipass'];
-			
-			$this->p='ociDataConnector('.$this->server.'/'.$this->service.'): ';
+			$this->p='ociDataConnector('.$this->server.'/'.$this->instance.'): ';
 			msg($this->p.'Initialized');
 		}
-		
+
 		public function connect() {
-			msg($this->p.'Connecting ... ');
-			//$this->oci = oci_connect($this->user,$this->password,$this->server.'/'.$this->service);
-			$this->oci = oci_connect('ics','Trk_icsPwd','srv-db.nppx.local/orcl');
-			if (!$this->oci) {
-			echo "CANNOT CONNECT ORACLE!";
-			return false;
-			} else {
-				$stid = oci_parse($this->oci, 'SELECT * FROM dual');
-				oci_execute($stid);
-			
-			while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)) {
-			        foreach ($row as $name=>$item) {
-			                echo "$name:$item	";
-			        }
-			        echo "\n";
-			}
-			return true;
-			}
+			msg($this->p."Connecting ... ");
+			$this->oci = oci_connect($this->user,$this->password,$this->server.'/'.$this->instance);
+			return $this->checkConnection();
 		}
 
 		public function disconnect() {
@@ -78,18 +62,32 @@
 			oci_close($this->oci);
 			unset ($ws);
 		}
-		
+
 		public function checkConnection() {
-			/*if ($this->ws->checkConnection()) {
-				msg($this->p.'WS Socket error!');
-				return true;
-			} else return false;*/
+			if (!$this->oci) {
+				msg($this->p.'Oracle instance not initialized!');
+				return false;
+			} else {
+				$stid = oci_parse($this->oci, 'SELECT * FROM dual');
+				oci_execute($stid);
+				if (
+					($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS))
+					&& (isset($row['DUMMY']))
+					&& ($row['DUMMY']==='X')
+				) {
+					//msg($this->p.'Oracle connection ok');
+					return true;
+				} else {
+					msg($this->p.'Oracle connection lost!');
+					return false;
+				}
+			}
 		}
 		
 		public function sendData($data) {
 			var_dump($data);
 		}
-		
+
 		public function getType() {return 'oci';}
 	}
 
@@ -119,7 +117,7 @@
 			$this->p='wsDataConnector('.$wsaddr.'): ';
 			msg($this->p.'Initialized');
 		}
-		
+
 		public function connect() {
 			msg($this->p.'Connecting ... ');
 			$this->ws = new WebsocketClient;
@@ -133,18 +131,18 @@
 			$ws->disconnect;
 			unset ($ws);
 		}
-		
+
 		public function checkConnection() {
 			if ($this->ws->checkConnection()) {
 				msg($this->p.'WS Socket error!');
 				return true;
 			} else return false;
 		}
-		
+
 		public function sendData($data) {
 			var_dump($data);
 		}
-		
+
 		public function getType() {return 'ws';}
 	}
 
@@ -160,9 +158,9 @@
 			$this->connectors=array();
 			foreach ($conParams as $dest) {
 				if (isset($dest['wsaddr'])) 
-					$this->connectors[] = new wsDataConnector($dest);	
+					$this->connectors[] = new wsDataConnector($dest);
 				if (isset($dest['ocisrv'])) 
-					$this->connectors[] = new ociDataConnector($dest);	
+					$this->connectors[] = new ociDataConnector($dest);
 			}
 			
 			msg($this->p.'Initialized '.count($this->connectors).' subconnectors.');
@@ -171,17 +169,19 @@
 		public function connect() {
 			msg($this->p.'Connecting data receivers ... ',2);
 			foreach ($this->connectors as $conn) if (!$conn->connect()) return false;
+			msg($this->p.'Connecting data receivers - All OK',2);
 			return true;
 		}
 
 		public function disconnect() {
 			msg($this->p.'Disconnecting data receivers ... ',2);
 			foreach ($this->connectors as $conn) $conn->disconnect();
+			msg($this->p.'Disconnecting data receivers - OK',2);
 		}
 
 		public function checkConnection() {
 			//прекращаем проверку, если найден разрыв хоть в одном источнике данных, и переинциализируем все на всякий случай
-			foreach ($this->connectors as $conn) if ($conn->checkConnection()) return false; 
+			foreach ($this->connectors as $conn) if (!$conn->checkConnection()) return false; 
 			//иначе все хорошо
 			return true;
 		}

@@ -22,14 +22,21 @@ $globLogFile=$logdir.DIRECTORY_SEPARATOR.basename(__FILE__).'.msg.log';
 $globErrFile=$logdir.DIRECTORY_SEPARATOR.basename(__FILE__).'.err.log';
 initLog();
 
-$usage=basename(__FILE__)." srvaddr:192.168.0.1 srvport:5038 srvuser:username srvpass:secret [wsaddr:192.168.0.2 wsport:8000 wschan:channel1]\n"
+$usage="Correct usage is:\n"
+	.basename(__FILE__)." srvaddr:192.168.0.1 srvport:5038 srvuser:username srvpass:secret [<wsaddr:192.168.0.2> <wsport:8000> <wschan:channel1>] [<ocisrv:127.0.0.1> <ociinst:orcl> <ociuser:orauser> <ocipass:password1>]\n"
 	."srvaddr:192.168.0.1  - AMI server address\n"
 	."srvport:5038         - AMI interface port\n"
 	."srvuser:username     - AMI user\n"
 	."srvpass:secret       - AMI password\n"
+	."- to translate to WebSockets channel use:"
 	."wsaddr:192.168.0.2   - WebSockets server address\n"
 	."wsport:8000          - WebSockets server port\n"
-	."wschan:channel1      - WebSockets channel to post AMI messages\n";
+	."wschan:channel1      - WebSockets channel to post AMI messages\n"
+	."- to translate to Oracle table use:"
+	."ocisrv:127.0.0.1     - Oracle server address\n"
+	."ociinst:orcl         - Oracle server instance\n"
+	."ociuser:oruser       - Oracle server user\n"
+	."ocipass:password1    - Oracle server password\n";
 	
 if (!strlen($srvaddr=get_param('srvaddr'))) criterr($usage);
 if (!strlen($srvport=get_param('srvport'))) criterr($usage);
@@ -52,13 +59,13 @@ if (strlen($wsaddr=get_param('wsaddr'))) {
 
 if (strlen($ocisrv=get_param('ocisrv'))) {
 	//если указан сервер вебсокетов, то используем. Тогда еще нужны учетные данные
-	if (!strlen($ocisvc =get_param('ocisvc')))  criterr($usage);
+	if (!strlen($ociinst =get_param('ociinst')))  criterr($usage);
 	if (!strlen($ociuser =get_param('ociuser')))  criterr($usage);	
 	if (!strlen($ocipass =get_param('ocipass')))  criterr($usage);	
 	//библиотека работы с WebSocket
 	require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'funcs.ws.php');
 	//в список параметров подключения к внешним получалям данных добавляем вебсокеты
-	$globConnParams[]=array('ocisrv'=>$ocisrv,'ocisvc'=>$ocisvc,'ociuser'=>$ociuser,'ocipass'=>$ocisrv);
+	$globConnParams[]=array('ocisrv'=>$ocisrv,'ociinst'=>$ociinst,'ociuser'=>$ociuser,'ocipass'=>$ocipass);
 }
 
 
@@ -150,7 +157,7 @@ function AMI_defaultevent_handler($evt, $par, $server=NULL, $port=NULL)
 	//то имеет смысл убить процесс (PID на этот случай в файле)
 	//и создать новый экземпляр
 }	
-	
+
 function ws_send($caller, $callee, $evt)
 {//отправляем сообщение в вебсокеты
 	global $ws;
