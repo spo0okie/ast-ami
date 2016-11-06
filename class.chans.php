@@ -1,42 +1,28 @@
 <?php
 //библиотека с классом обработчиком состояний каналов
 
-/*класс парсер канала*/
-class channelItem {
-	
-	private $name=null;	//полное имя канала
-	private $tech=null; //технология канала (протокол)
-	private $cid=null;	//источник вызова (callerid)
-	private $realTech=false; //признак реального канала (не виртуального внутри самого астериска)
-	
-	
-	public function __concstruct ($name) {
-		if (!strlen($name)) return NULL;		//пустая строка
 
-		$this->name = $name;
+function chanGetTech($name) {
+	if (!strlen($name)) return NULL;	//пустая строка
+		$slash=strpos($name,'/'); 		//разбираем канал в соответствии с синтаксисом
+	if (!$slash) return NULL;			//несоотв синтаксиса
+	return substr($name,0,$slash);
+}
+
+function chanCkTech($name) {
+	$tech = chanGetTech($name);
+//	echo $tech."\n";
+	return NULL!==$tech&&$tech!=='Local';//возвращаем что технология у канала есть и она не Local (что означает, что канал виртуальный)
+}
+
+function chanGetSrc($name)	{
+		if (!strlen($name)) return NULL;		//пустая строка
 		$slash=strpos($name,'/'); 	//разбираем канал в соответствии с синтаксисом
 		$dash=strrpos($name,'-'); 
 		$at=strpos($name,'@'); 		//ищем / - @ в строке
-		
-		if (!$slash||!($at||$dash)) {
-			echo "$name is incorrect channel!";
-			return NULL;		//несоотв синтаксиса
-		}
-		
+		if (!$slash||!($at||$dash)) return NULL;	//несоотв синтаксиса
 		$numend=($at&&$dash)?min($at,$dash):max($at,$dash);	//конец номера
-		$this->cid=substr($name,$slash+1,$numend-$slash-1); //ищем номер звонящего абонента в имени канала
-		$this->tech=left($name,$slash-1);
-		
-	}
-	public function getName()	{return $this->name;}
-	public function getSrc()	{return $this->cid;}
-	public function getTech()	{return $this->tech;}
-	public function ckTech()
-	{//проверят интересен ли нам канал по этой технологии
-		return !($this->getTech()==='Local');	//отфильтруем только локальные каналы, вроде по документации только они создаются синтетически
-	}
-	
-	
+		return substr($name,$slash+1,$numend-$slash-1); //ищем номер звонящего абонента в имени канала
 }
 
 
@@ -73,15 +59,8 @@ class eventItem {
 	}
 
 	public function getChan() {//возвращает имя канала из параметров ивента с учетом фильтра технологий соединения
-		if ($this->exists('Channel')) {
-			$chan = new channelItem($this->par['Channel']);
-			return $chan;
-			if ($chan->ckTech()) return $chan;
-			else unset ($chan);
-		} else {
-			//echo "No channel in \n";
-			//print_r($this->par);
-		}
+		if (($this->exists('Channel')) && (chanCKTech($this->getPar('Channel'))))
+			return $this->getPar('Channel');
 		return NULL;
 	}
 
@@ -113,15 +92,22 @@ class eventItem {
 
 class chanList {
 	private $list=array();
+	private $connector=NULL;
+	
+	
+	private function p() 
+	{// префикс для сообщений в лог
+		return 'chanList('.count($this->list).'): ';
+	}
 	
 	function __constructor(){
-		msg($p.'Initializing chanlist');
 		$list=array();
+		msg($this->p().'Initialized.');
 	}
 
 	private function getSrc($chan,$evt=NULL)
 	{//вертает номер звонящего абонента из имени канала, или CallerID
-		$fromname=$chan->getSrc();
+		$fromname=chanGetSrc($chan);
 		$frompar='';
 		if (isset($evt)) $frompar=$evt->getSrc();
 		if (strlen($fromname)&&is_numeric($fromname)) return $fromname;
@@ -129,27 +115,39 @@ class chanList {
 		return NULL;
 	}
 
+	public function connect($connector)
+	{//подключаем внешний коннектор куда кидать обновления
+		$this->connector = $connector;
+		msg($this->p().'External connector attached.');
+	}
+
+	public function sendData($data)
+	{//подключаем внешний коннектор куда кидать обновления
+		if (isset($this->connector))
+			$this->connector->sendData($data);
+		else
+			msg($this->p().'External connector not attached! Cant send updates!');
+	}
 
 	public function upd($par)
 	{//обновляем информацию о канале новыми данными
 		$evt=new eventItem($par);
-		if (NULL!==($chan=$evt->getChan())) //имя канала вернется если в пераметрах события оно есть и если канал при этом не виртуальный
+		if (NULL!==($cname=$evt->getChan())) //имя канала вернется если в пераметрах события оно есть и если канал при этом не виртуальный
 		{
-			$cname=$chan->getName();
 			//echo "Got chan: $cname";
 			if (!isset($this->list[$cname])) $this->list[$cname]=array('src'=>NULL,'dst'=>NULL,'state'=>NULL);        //создаем канал если его еще нет в списке
-			$src	=chanList::getSrc($chan,$evt);	//ищем вызывающего
+			$src	=chanList::getSrc($cname,$evt);	//ищем вызывающего
 			$dst	=$evt->getDst();				//ищем вызываемого
 			$oldstate=$this->list[$cname]['state'];    //запоминаем старый статус
 
 			//вариант однократного обновления данных о номерах в канале
 			//ищем абонентов до тех пор пока не найдем, следующие изменения абонентов игнорируем
-			if (!isset($this->list[$cname]['src'])&&isset($src)) $this->list[$cname]['src']=$src;
-			if (!isset($this->list[$cname]['dst'])&&isset($dst)) $this->list[$cname]['dst']=$dst;
+			//if (!isset($this->list[$cname]['src'])&&isset($src)) $this->list[$cname]['src']=$src;
+			//if (!isset($this->list[$cname]['dst'])&&isset($dst)) $this->list[$cname]['dst']=$dst;
 
 			//вариант многократного обновления
-			//if (isset($src)) $this->list[$cname]['src']=$src;
-			//if (isset($dst)) $this->list[$cname]['dst']=$dst;
+			if (isset($src)) $this->list[$cname]['src']=$src;
+			if (isset($dst)) $this->list[$cname]['dst']=$dst;
 
 			$this->list[$cname]['state']=$evt->getState();//устанавливаем статус
 
@@ -157,11 +155,12 @@ class chanList {
 			//и статус отличается от старого
 			if (isset($this->list[$cname]['src'])&&isset($this->list[$cname]['dst'])&&isset($this->list[$cname]['state'])&&($oldstate!==$this->list[$cname]['state']))  {
 				$this->dump($cname);   //сообщаем об этом радостном событии в консольку
+				$this->sendData($this->list[$cname]);
 				//chan_ws($chan);     //и на сервер вебсокетов
 		 	}
 		}
 		unset ($evt);
-//		$this->dumpAll();
+		$this->dumpAll();
 	}
 	
 	public function ren($par)
@@ -170,13 +169,11 @@ class chanList {
 		if (NULL!==($chan=$evt->getChan())) //в событии есть канал?
 		{
 			if($evt->exists('Newname')) {//в нем есть новый канал?
-				$newchan=new channelItem($evt->getPar('Newname'));//создаем объект канала из нового канала
-				if ($newchan->ckTech()) //если канал настоящий 
-					$this->list[$evt->getPar('Newname')]=$this->list[$chan->getName()]; //то создаем канал с новым именем из старого
-				unset ($newchan);
+				$newchan=$evt->getPar('Newname');//создаем объект канала из нового канала
+				if (chanCkTech($newchan)) //если канал настоящий 
+					$this->list[$newchan]=$this->list[$chan]; //то создаем канал с новым именем из старого
 			}
-			unset ($this->list[$chan->getName()]);
-			unset ($chan);
+			unset ($this->list[$chan]);
 		}
 		unset ($evt);
 //		$this->dumpAll();
@@ -187,8 +184,7 @@ class chanList {
 		$evt=new eventItem($par);		//создаем событие
 		if (NULL!==($chan=$evt->getChan())) //в событии есть канал?
 		{
-			unset ($this->list[$chan->getName()]);
-			unset ($chan);
+			unset ($this->list[$chan]);
 		}
 		unset ($evt);
 //		$this->dumpAll();

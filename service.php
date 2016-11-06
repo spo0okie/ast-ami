@@ -169,7 +169,9 @@ function ws_send($caller, $callee, $evt)
 	$ws->sendData('{"type":"event","caller":"'.$caller.'","callee":"'.$callee.'","event":"'.$evt.'"}');
 }
 
+
 $connector = new globDataConnector($globConnParams);
+$chans->connect($connector);
 $ast = new astConnector(array('server'=>$srvaddr,'port'=>$srvport,'username'=>$srvuser,'secret'=>$srvpass));
 $p=basename(__FILE__).'('.$connector->getType().'): '; //msg prefix
 
