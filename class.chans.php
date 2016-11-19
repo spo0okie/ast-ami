@@ -1,6 +1,8 @@
 <?php
 //библиотека с классом обработчиком состояний каналов
 
+//на контекст куда бросаются вызовы из call файлов называется org1_api_outcall
+define ('API_CALLOUT_PREFIX','Вызов ');
 
 function chanGetTech($name) {
 	if (!strlen($name)) return NULL;	//пустая строка
@@ -43,9 +45,9 @@ class eventItem {
 		return $this->exists($item)&&is_numeric($this->par[$item]);
 	}
 
-	public function getPar($name){
+	public function getPar($name,$default=NULL){
 		if ($this->exists($name)) return $this->par[$name];
-		return NULL;
+		return $default;
 	}
 
 	public function getSrc() {//ищем номер звонящего абонента в параметрах ивента
@@ -64,11 +66,21 @@ class eventItem {
 		return NULL;
 	}
 
+	public function isFakeIncoming() 
+	{//возвращает признак что звонок притворяется входящим, будучи на самом деле
+	 //исходящим сделанным не с телефона а чере call файл. тогда сначала звонит аппарат
+	 //вызывающего, и отображается CallerID вызываемого. Если это не обработать специально
+	 //то такой вызов классифицируется как входящий. Поэтому все вызовы через call файлы
+	 //помещаются в специальный контекст, который проверяется в этой функции 
+	 // - не вышло с контекстом, пробуем через caller ID
+		return ($this->getPar('CallerIDName')===(API_CALLOUT_PREFIX.$this->getPar('ConnectedLineNum')));
+	}
+
 	public function getState()
 	{//возвращает статус канала из параметров ивента,
 	 //но только если этотстатус нас интересует
 	 //можно раскоментить и другие статусы, но нужно потом их обрабатывать
-			$states=array(
+		$states=array(
 			//'Down'=>NULL,				//Channel is down and available
 			//'Rsrvd'=>NULL,			//Channel is down, but reserved
 			//'OffHook'=>NULL,			//Channel is off hook
@@ -124,11 +136,25 @@ class chanList {
 	private function sendData($data)
 	{//подключаем внешний коннектор куда кидать обновления
 		if (isset($this->connector)) {
-			msg($this->p().'Sending data to connector.');
+			//msg($this->p().'Sending data to connector.');
 			$this->connector->sendData($data);
 		}
 		else
 			msg($this->p().'External connector not attached! Cant send updates!');
+	}
+
+	private function ringDirCheckData($chan) 
+	{/*суть: в зависимости от статуса Ring или Ringing меняется смысл кто кому звонит
+	  * поэтому если вдруг у нас ringing, то мы меняем его на ring и меняем местами абонентов
+	  * таким образом всегда понятно что src -> dst, что проще*/
+		$data=$this->list[$chan];
+		if (($data['state']==='Ringing') xor ($data['reversed']===true)) {
+			$tmp=$data['dst'];
+			$data['dst']=$data['src'];
+			$data['src']=$tmp;
+			$data['state']='Ring';
+		}
+		return $data;
 	}
 
 	public function upd($par)
@@ -137,7 +163,7 @@ class chanList {
 		if (NULL!==($cname=$evt->getChan())) //имя канала вернется если в пераметрах события оно есть и если канал при этом не виртуальный
 		{
 			//echo "Got chan: $cname";
-			if (!isset($this->list[$cname])) $this->list[$cname]=array('src'=>NULL,'dst'=>NULL,'state'=>NULL);        //создаем канал если его еще нет в списке
+			if (!isset($this->list[$cname])) $this->list[$cname]=['src'=>NULL,'dst'=>NULL,'state'=>NULL,'reversed'=>false];        //создаем канал если его еще нет в списке
 			$src	=chanList::getSrc($cname,$evt);	//ищем вызывающего
 			$dst	=$evt->getDst();				//ищем вызываемого
 			$oldstate=$this->list[$cname]['state'];    //запоминаем старый статус
@@ -147,21 +173,26 @@ class chanList {
 			/*информация о канале формируется единожды. т.е. как только мы узнали src и dst
 			 * больше их не меняем. обновляем данные только о неполных с точки зрения информации
 			 * каналах */
-			if (!isset($this->list[$cname]['src'])&&isset($src)) $this->list[$cname]['src']=$src;
-			if (!isset($this->list[$cname]['dst'])&&isset($dst)) $this->list[$cname]['dst']=$dst;
+			//if (!isset($this->list[$cname]['src'])&&isset($src)) $this->list[$cname]['src']=$src;
+			//if (!isset($this->list[$cname]['dst'])&&isset($dst)) $this->list[$cname]['dst']=$dst;
 
 			//вариант многократного обновления
 			/* обновляем информацию всегда, когда есть что обновить (больше обновлений) */
-			//if (isset($src)) $this->list[$cname]['src']=$src;
-			//if (isset($dst)) $this->list[$cname]['dst']=$dst;
+			if (isset($src)) $this->list[$cname]['src']=$src;
+			if (isset($dst)) $this->list[$cname]['dst']=$dst;
 
 			$this->list[$cname]['state']=$evt->getState();//устанавливаем статус
-
+			
+			//проверяем что это не исходящий звонок начинающийся со звонка на аппарат звонящего
+			//с демонстрацией callerID абонента куда будет совершен вызов, если снять трубку
+			//(костыль для обнаружения вызовов через call файлы)
+			$this->list[$cname]['reversed']=$this->list[$cname]['reversed']||$evt->isFakeIncoming();
+			
 			//если у нас накопился законченный набор информации
 			//и статус отличается от старого
 			if (isset($this->list[$cname]['src'])&&isset($this->list[$cname]['dst'])&&isset($this->list[$cname]['state'])&&($oldstate!==$this->list[$cname]['state']))  {
 				$this->dump($cname);   //сообщаем об этом радостном событии в консольку
-				$this->sendData($this->list[$cname]);
+				$this->sendData($this->ringDirCheckData($cname));
 				//chan_ws($chan);     //и на сервер вебсокетов
 		 	}
 		}
@@ -207,12 +238,12 @@ class chanList {
 	{//дампит в консоль один канал
 		if (isset($this->list[$name])) {
 			switch ($this->list[$name]['state']){
-				case 'Ring':    $st=' --> '; break;
-				case 'Ringing': $st=' <-- '; break;
-				case 'Up':      $st='<-!->'; break;
-				default:        $st=' ??? '; break;
+				case 'Ring':    $st=' -(Ring)-> '; break;
+				case 'Ringing': $st=' <-(Ringing)- '; break;
+				case 'Up':      $st=' <-(Up)->' ; break;
+				default:        $st=' (Unknown) '; break;
 			}
-			echo $name.':   '.$this->list[$name]['src'].$st.$this->list[$name]['dst']." \n";
+			echo $name.':   '.$this->list[$name]['src'].$st.$this->list[$name]['dst']."	".($this->list[$name]['reversed']?'reversed':'straight')."\n";
 		}
 	}
 }

@@ -102,7 +102,7 @@ function evt_def($evt, $par, $server=NULL, $port=NULL)
 	//если раскомментировать то что ниже, то в консольке можно будет
 	//посмотреть какая нам информация приходит с теми событиями
 	//на которые повешен этот обработчик
-	msg('Got evt "'.$evt.'"');
+	//msg('Got evt "'.$evt.'"');
 	//print_r($par);
 	global $chans;
 	$chans->upd($par);
