@@ -85,8 +85,13 @@
 		}
 		
 		public function sendData($data) {
-			msg($this->p.'Sending data:');
-			var_dump($data);
+			if (strlen($data['src'])<5) return true;
+			if (strlen($data['dst'])>4) return true;
+			$oci_command = "begin ics.services.calls_queue('".$data['src']."','".$data['dst']."','',to_date('". date('d.m.Y H:i:s')."','dd.mm.yyyy hh24:mi:ss'),'".$data['state']."'); end;";
+			msg($this->p.'Sending data:' . $oci_command);
+			$stid = oci_parse($this->oci, $oci_command);
+			if (!oci_execute($stid)) msg($this->p.'Error pushing data to Oracle!');
+			//var_dump($data);
 		}
 
 		public function getType() {return 'oci';}
@@ -234,9 +239,9 @@
 
 		
 		public function sendData($data) {
-			msg($this->p.'Sending data to '.count($this->connectors).' subconnectors ... ',2);
+			//msg($this->p.'Sending data to '.count($this->connectors).' subconnectors ... ',2);
 			foreach ($this->connectors as $conn) {
-				msg($this->p.'Push!',2);
+				//msg($this->p.'Push!',2);
 				$conn->sendData($data);
 			}
 		}
