@@ -163,7 +163,7 @@ class chanList {
 		if (NULL!==($cname=$evt->getChan())) //имя канала вернется если в пераметрах события оно есть и если канал при этом не виртуальный
 		{
 			//echo "Got chan: $cname";
-			if (!isset($this->list[$cname])) $this->list[$cname]=['src'=>NULL,'dst'=>NULL,'state'=>NULL,'reversed'=>false];        //создаем канал если его еще нет в списке
+			if (!isset($this->list[$cname])) $this->list[$cname]=array('src'=>NULL,'dst'=>NULL,'state'=>NULL,'reversed'=>false);        //создаем канал если его еще нет в списке
 			$src	=chanList::getSrc($cname,$evt);	//ищем вызывающего
 			$dst	=$evt->getDst();				//ищем вызываемого
 			$oldstate=$this->list[$cname]['state'];    //запоминаем старый статус
