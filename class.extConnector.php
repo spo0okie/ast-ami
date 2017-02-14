@@ -107,39 +107,21 @@
 
 		public function connect() {
 			msg($this->p.'Connecting ... ');
+			return $this->checkConnection();
 		}
 
 		public function disconnect() {
 			msg($this->p.'Disconnecting ... ');
 		}
 
-		public function checkConnection() {
-			if (!$this->oci) {
-				msg($this->p.'Oracle instance not initialized!');
-				return false;
-			} else {
-				$stid = oci_parse($this->oci, 'SELECT * FROM dual');
-				oci_execute($stid);
-				if (
-					($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS))
-					&& (isset($row['DUMMY']))
-					&& ($row['DUMMY']==='X')
-				) {
-					//msg($this->p.'Oracle connection ok');
-					return true;
-				} else {
-					msg($this->p.'Oracle connection lost!');
-					return false;
-				}
-			}
-		}
+		public function checkConnection() {return true;}
 		
 		public function sendData($data) {
 			msg($this->p.'Sending data:');
 			var_dump($data);
 		}
 
-		public function getType() {return 'oci';}
+		public function getType() {return 'con';}
 	}
 
 
@@ -208,6 +190,8 @@
 			
 			$this->connectors=array();
 			foreach ($conParams as $dest) {
+				if (isset($dest['conout'])) 
+					$this->connectors[] = new consoleDataConnector($dest);
 				if (isset($dest['wsaddr'])) 
 					$this->connectors[] = new wsDataConnector($dest);
 				if (isset($dest['ocisrv'])) 

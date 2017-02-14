@@ -30,6 +30,9 @@ $usage="Correct usage is:\n"
 	."srvuser:username     - AMI user\n"
 	."srvpass:secret       - AMI password\n\n"
 	
+	."- to translate to Console  use:"
+	."conout:yes           - Use console output\n\n"
+
 	."- to translate to WebSockets channel use:"
 	."wsaddr:192.168.0.2   - WebSockets server address\n"
 	."wsport:8000          - WebSockets server port\n"
@@ -48,6 +51,12 @@ if (!strlen($srvpass=get_param('srvpass'))) criterr($usage);
 
 
 $globConnParams=array();
+
+//Используем ли мы вебсокеты?
+if (strlen($conout=get_param('conout'))) {
+	//если указан сервер вебсокетов, то используем. Тогда еще нужны учетные данные
+	$globConnParams[]=array('conout'=>$conout);
+}
 
 //Используем ли мы вебсокеты?
 if (strlen($wsaddr=get_param('wsaddr'))) {

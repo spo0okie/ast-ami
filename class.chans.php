@@ -81,7 +81,7 @@ class eventItem {
 	public function getMonitor() {//возвращает имя файла записи звонка
 		if ($this->getPar('Application')=='Monitor') {
 			$parts=explode(',',$this->getPar('AppData'))[1];
-			$tokens=explode(',',$parts);
+			$tokens=explode('/',$parts);
 			return $tokens[count($tokens)-1];
 		}
 		return NULL;
