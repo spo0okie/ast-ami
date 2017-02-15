@@ -16,7 +16,8 @@ require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.chans.php');
 $tmp='/tmp/';
 if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
     $tmp='c:\\temp\\';
-} 
+}//'
+
 $logdir=$piddir=$tmp;	//куда будем писать логи и хартбиты сервисов
 $globLogFile=$logdir.DIRECTORY_SEPARATOR.basename(__FILE__).'.msg.log';
 $globErrFile=$logdir.DIRECTORY_SEPARATOR.basename(__FILE__).'.err.log';
@@ -29,6 +30,9 @@ $usage="Correct usage is:\n"
 	."srvuser:username     - AMI user\n"
 	."srvpass:secret       - AMI password\n\n"
 	
+	."- to translate to Console  use:"
+	."conout:yes           - Use console output\n\n"
+
 	."- to translate to WebSockets channel use:"
 	."wsaddr:192.168.0.2   - WebSockets server address\n"
 	."wsport:8000          - WebSockets server port\n"
@@ -47,6 +51,12 @@ if (!strlen($srvpass=get_param('srvpass'))) criterr($usage);
 
 
 $globConnParams=array();
+
+//Используем ли мы вебсокеты?
+if (strlen($conout=get_param('conout'))) {
+	//если указан сервер вебсокетов, то используем. Тогда еще нужны учетные данные
+	$globConnParams[]=array('conout'=>$conout);
+}
 
 //Используем ли мы вебсокеты?
 if (strlen($wsaddr=get_param('wsaddr'))) {
@@ -102,8 +112,8 @@ function evt_def($evt, $par, $server=NULL, $port=NULL)
 	//если раскомментировать то что ниже, то в консольке можно будет
 	//посмотреть какая нам информация приходит с теми событиями
 	//на которые повешен этот обработчик
-	//msg('Got evt "'.$evt.'"');
-	//print_r($par);
+	msg('Got evt "'.$evt.'"');
+	print_r($par);
 	global $chans;
 	$chans->upd($par);
 	

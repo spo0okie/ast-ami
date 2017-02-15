@@ -65,6 +65,27 @@ class eventItem {
 			return $this->getPar('Channel');
 		return NULL;
 	}
+/*Array
+(
+    [Event] => Newexten
+    [Privilege] => dialplan,all
+    [Channel] => SIP/telphin_yamal-000008b7
+    [Context] => macro-RecordCall
+    [Extension] => s
+    [Priority] => 6
+    [Application] => Monitor
+    [AppData] => wav,/home/record/yamal/_current/20170210-221016-+79193393655-IN-+79193393655
+    [Uniqueid] => 1486746616.2615
+)*/
+
+	public function getMonitor() {//возвращает имя файла записи звонка
+		if ($this->getPar('Application')=='Monitor') {
+			$parts=explode(',',$this->getPar('AppData'))[1];
+			$tokens=explode('/',$parts);
+			return $tokens[count($tokens)-1];
+		}
+		return NULL;
+	}
 
 	public function isFakeIncoming() 
 	{//возвращает признак что звонок притворяется входящим, будучи на самом деле
@@ -104,6 +125,7 @@ class eventItem {
 
 class chanList {
 	private $list=array();
+	private $ami=NULL;
 	private $connector=NULL;
 	
 	
@@ -112,8 +134,9 @@ class chanList {
 		return 'chanList('.count($this->list).'): ';
 	}
 	
-	function __constructor(){
+	function __constructor($src){
 		$list=array();
+		$ami=$src;
 		msg($this->p().'Initialized.');
 	}
 
@@ -163,10 +186,14 @@ class chanList {
 		if (NULL!==($cname=$evt->getChan())) //имя канала вернется если в пераметрах события оно есть и если канал при этом не виртуальный
 		{
 			//echo "Got chan: $cname";
-			if (!isset($this->list[$cname])) $this->list[$cname]=array('src'=>NULL,'dst'=>NULL,'state'=>NULL,'reversed'=>false);        //создаем канал если его еще нет в списке
+			if (!isset($this->list[$cname])) $this->list[$cname]=['src'=>NULL,'dst'=>NULL,'state'=>NULL,'monitor'=>NULL,'reversed'=>false];        //создаем канал если его еще нет в списке
 			$src	=chanList::getSrc($cname,$evt);	//ищем вызывающего
 			$dst	=$evt->getDst();				//ищем вызываемого
-			$oldstate=$this->list[$cname]['state'];    //запоминаем старый статус
+			if ($mon=$evt->getMonitor()) {
+				$this->list[$cname]['monitor']=$mon;
+				echo "Got record file: $mon\n";
+			}
+			$oldstate=$this->list[$cname]['state'];	//запоминаем старый статус
 
 			//вариант однократного обновления данных о номерах в канале
 			//ищем абонентов до тех пор пока не найдем, следующие изменения абонентов игнорируем
@@ -263,6 +290,7 @@ class astConnector {
 			$this->astman = new AGI_AsteriskManager(null,$this->conParams);
 		msg($this->p.'Init AMI event handlers ... ',1);
 			$this->astman->add_event_handler('state',		'evt_def');
+			$this->astman->add_event_handler('newexten',	'evt_def');
 			$this->astman->add_event_handler('newstate',	'evt_def');
 			$this->astman->add_event_handler('newcallerid',	'evt_def');
 			$this->astman->add_event_handler('newchannel',	'evt_def');

@@ -87,7 +87,7 @@
 		public function sendData($data) {
 			if (strlen($data['src'])<5) return true;
 			if (strlen($data['dst'])>4) return true;
-			$oci_command = "begin ics.services.calls_queue('".$data['src']."','".$data['dst']."','',to_date('". date('d.m.Y H:i:s')."','dd.mm.yyyy hh24:mi:ss'),'".$data['state']."'); end;";
+			$oci_command = "begin ics.services.calls_queue('".$data['src']."','".$data['dst']."','',to_date('". date('d.m.Y H:i:s')."','dd.mm.yyyy hh24:mi:ss'),'".$data['state']."','".$data['monitor']."'); end;";
 			msg($this->p.'Sending data:' . $oci_command);
 			$stid = oci_parse($this->oci, $oci_command);
 			if (!oci_execute($stid)) msg($this->p.'Error pushing data to Oracle!');
@@ -95,6 +95,33 @@
 		}
 
 		public function getType() {return 'oci';}
+	}
+
+
+	class consoleDataConnector extends abstractDataConnector  {
+		private $p='consoleDataConnector: '; //log prefix
+
+		public function __construct($conParams=null) {
+			msg($this->p.'Initialized');
+		}
+
+		public function connect() {
+			msg($this->p.'Connecting ... ');
+			return $this->checkConnection();
+		}
+
+		public function disconnect() {
+			msg($this->p.'Disconnecting ... ');
+		}
+
+		public function checkConnection() {return true;}
+		
+		public function sendData($data) {
+			msg($this->p.'Sending data:');
+			var_dump($data);
+		}
+
+		public function getType() {return 'con';}
 	}
 
 
@@ -163,6 +190,8 @@
 			
 			$this->connectors=array();
 			foreach ($conParams as $dest) {
+				if (isset($dest['conout'])) 
+					$this->connectors[] = new consoleDataConnector($dest);
 				if (isset($dest['wsaddr'])) 
 					$this->connectors[] = new wsDataConnector($dest);
 				if (isset($dest['ocisrv'])) 
