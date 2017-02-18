@@ -9,6 +9,8 @@ require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'phpagi.php');
 //класс коннекторов к получателям данных
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.extConnector.php');	
 //класс коннекторa к asterisk AMI
+require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.amiConnector.php');	
+//класс управления списком каналов
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.chans.php');	
 
 
@@ -102,41 +104,6 @@ function chan_ws($name)
 
 /*	ОБРАБОТЧИКИ СОБЫТИЙ ПОЛУЧАЕМЫХ ОТ АСТЕРИСКА */
 
-$chans = new chanList();
-
-function evt_def($evt, $par, $server=NULL, $port=NULL)
-{	/*	обработчик события AMI по умолчанию 
-	* ищет сорц, дестинейшн и статус, 
-	* и если находит чтото - обновляет этими данными список каналов	*/
-	
-	//если раскомментировать то что ниже, то в консольке можно будет
-	//посмотреть какая нам информация приходит с теми событиями
-	//на которые повешен этот обработчик
-	msg('Got evt "'.$evt.'"');
-	print_r($par);
-	global $chans;
-	$chans->upd($par);
-	
-	//chan_dump_all();
-	AMI_defaultevent_handler($evt,$par);
-}
-
-function evt_rename($evt,$par)
-{//обработчик события о переименовании канала
-	global $chans;
-	$chans->ren($par);
-	//chan_dump_all();
-	AMI_defaultevent_handler($evt,$par);
-}
-
-function evt_hangup($evt,$par)
-{//обработчик события о смерти канала
-	global $chans;
-	$chans->ren($par);
-	//chan_dump_all();
-	AMI_defaultevent_handler($evt,$par);
-}
-
 function con_rotor()
 {	//рисует вращающийся курсор, дабы было в консоли было видно что процесс жив
 	global $phpagirotor;
@@ -180,11 +147,16 @@ function ws_send($caller, $callee, $evt)
 	$ws->sendData('{"type":"event","caller":"'.$caller.'","callee":"'.$callee.'","event":"'.$evt.'"}');
 }
 
+//Коннектор к внешним БД
+$DBconnector = new globDataConnector($globConnParams);
 
-$connector = new globDataConnector($globConnParams);
-$ast = new astConnector(array('server'=>$srvaddr,'port'=>$srvport,'username'=>$srvuser,'secret'=>$srvpass));
-$p=basename(__FILE__).'('.$connector->getType().'): '; //msg prefix
-$chans->connect($connector);
+//Класс списка каналов подключатся к внешним источникам, чтобы передавать туда информацию о событиях
+$chans = new chanList($DBconnector);
+
+//Коннектор к AMI подключается к списку каналов чтобы передавать в него информацию о событиях поступающих от Asterisk
+$AMIconnector = new astConnector(array('server'=>$srvaddr,'port'=>$srvport,'username'=>$srvuser,'secret'=>$srvpass),$chans,'AMI_defaultevent_handler');
+
+$p=basename(__FILE__).'('.$DBconnector->getType().'): '; //msg prefix
 
 //собственно понеслась
 //msg($p.'Script started');
@@ -192,25 +164,25 @@ $chans->connect($connector);
 while (true) {
 	pidWriteSvc(basename(__FILE__));//heartbeat
 
-	if ($ast->connect()) {
+	if ($AMIconnector->connect()) {
 
 		msg($p.'Connecting data receivers ... ');
-		if ($connector->connect()) {
+		if ($DBconnector->connect()) {
 
 			msg($p.'AMI event waiting loop ... ');
 				pidWriteSvc(basename(__FILE__));//heartbeat
 
-				while ($ast->checkConnection()&&$connector->checkConnection())	//пока с соединениями все ок
-					$ast->waitResponse();	//обрабатываем события
+				while ($AMIconnector->checkConnection()&&$DBconnector->checkConnection())	//пока с соединениями все ок
+					$AMIconnector->waitResponse();	//обрабатываем события
 
 			msg($p.'Loop exited. ');
-			$connector->disconnect();
+			$DBconnector->disconnect();
 
 		} else msg ($p.'Err connecting data recivers');
 
 	} else msg ($p.'Err connecting AMI.');
 
-	$ast->disconnect();
+	$AMIconnector->disconnect();
 
 	msg($p.'Reconnecting ... ');
 	sleep(1);

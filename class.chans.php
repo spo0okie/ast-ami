@@ -27,11 +27,10 @@ function chanGetSrc($name)	{
 		return substr($name,$slash+1,$numend-$slash-1); //ищем номер звонящего абонента в имени канала
 }
 
-
 class eventItem {
 	private $par; //массив параметр=>значение из которого и состоит евент
 
-	public function __construct($par){
+	public function __construct($par) {
 		$this->par=$par;
 		//echo "New event:\n";
 		//print_r ($this->par);
@@ -134,9 +133,14 @@ class chanList {
 		return 'chanList('.count($this->list).'): ';
 	}
 	
-	function __constructor($src){
+	function __construct($dst){
 		$list=array();
-		$ami=$src;
+		
+		if ($dst!==NULL) {
+			//подключаем внешний коннектор куда кидать обновления
+			$this->connector = $dst;
+			msg($this->p().'External connector attached. ('.$this->connector->getType().')');
+		} else echo "DST is $dst \n";
 		msg($this->p().'Initialized.');
 	}
 
@@ -150,10 +154,12 @@ class chanList {
 		return NULL;
 	}
 
-	public function connect($connector)
-	{//подключаем внешний коннектор куда кидать обновления
-		$this->connector = $connector;
-		msg($this->p().'External connector attached. ('.$this->connector->getType().')');
+	public function attachAMI($src)
+	{//подключает АМИ интерфейс для прямого запроса дополнительных данных при обработке событий поступающих от АМИ
+		if ($src) {
+			$this->ami=$src;
+			msg($this->p().'AMI connector attached. ('.$this->ami->get_info().')');
+		}
 	}
 
 	private function sendData($data)
@@ -180,6 +186,15 @@ class chanList {
 		return $data;
 	}
 
+	public function setMonitorHook($evt) {//устанавливает имя файла записи звонка в переменную, которая расползется по всем дочерним каналам
+		msg ($this->p().'Pushing monitor file to chan variable...',2);
+		$this->ami->set_chan_var($evt->getChan(),'__MonitorFileHook',$evt->getMonitor());
+	}
+
+	public function getMonitorHook($evt) {//возвращает имя файла записи звонка
+		return $this->ami->get_chan_var($evt->getChan(),'MonitorFileHook');
+	}
+
 	public function upd($par)
 	{//обновляем информацию о канале новыми данными
 		$evt=new eventItem($par);
@@ -192,6 +207,7 @@ class chanList {
 			if ($mon=$evt->getMonitor()) {
 				$this->list[$cname]['monitor']=$mon;
 				echo "Got record file: $mon\n";
+				$this->setMonitorHook($evt);
 			}
 			$oldstate=$this->list[$cname]['state'];	//запоминаем старый статус
 
@@ -219,8 +235,8 @@ class chanList {
 			//и статус отличается от старого
 			if (isset($this->list[$cname]['src'])&&isset($this->list[$cname]['dst'])&&isset($this->list[$cname]['state'])&&($oldstate!==$this->list[$cname]['state']))  {
 				$this->dump($cname);   //сообщаем об этом радостном событии в консольку
+				if (!strlen($this->list[$cname]['monitor'])) $this->list[$cname]['monitor']=$this->getMonitorHook($evt);
 				$this->sendData($this->ringDirCheckData($cname));
-				//chan_ws($chan);     //и на сервер вебсокетов
 		 	}
 		}
 		unset ($evt);
@@ -272,49 +288,5 @@ class chanList {
 			}
 			echo $name.':   '.$this->list[$name]['src'].$st.$this->list[$name]['dst']."	".($this->list[$name]['reversed']?'reversed':'straight')."\n";
 		}
-	}
-}
-
-class astConnector {
-	private $astman;
-	private $conParams;
-	private $p;
-
-	function __construct($params) {
-		$this->conParams=$params;
-		$this->p='astConnector('.$params['server'].'): ';
-	}
-
-	function connect() {
-		msg($this->p.'Init AMI interface class ... ',1);
-			$this->astman = new AGI_AsteriskManager(null,$this->conParams);
-		msg($this->p.'Init AMI event handlers ... ',1);
-			$this->astman->add_event_handler('state',		'evt_def');
-			$this->astman->add_event_handler('newexten',	'evt_def');
-			$this->astman->add_event_handler('newstate',	'evt_def');
-			$this->astman->add_event_handler('newcallerid',	'evt_def');
-			$this->astman->add_event_handler('newchannel',	'evt_def');
-			$this->astman->add_event_handler('hangup',		'evt_hangup');
-			$this->astman->add_event_handler('rename',		'evt_rename');
-		msg($this->p.'Connecting AMI inteface ... ');
-			if (!$this->astman->connect()) return false;
-		msg($this->p.'Switching AMI events ON ... ',1);
-			$this->astman->Events('on');
-		return true;
-	}
-	
-	function checkConnection() {
-		if (!$this->astman->socket_error) return true;
-		msg ($this->p.'AMI socket error!');
-		return false;
-	}
-	
-	function waitResponse() {
-		return $this->astman->wait_response();
-	}
-	
-	function disconnect() {
-		$this->astman->disconnect();
-		unset ($this->astman);
 	}
 }

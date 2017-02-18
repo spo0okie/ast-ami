@@ -26,10 +26,16 @@
   *
   */
 
-  if(!class_exists('AGI'))
-  {
-    require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'phpagi.php');
-  }
+
+	function getParName($buffer){
+		$a = strpos($buffer, ':');
+		return $a?substr($buffer, 0, $a):false;
+	}
+
+  	if(!class_exists('AGI'))
+	{
+	    require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'phpagi.php');
+	}
   /**
   * Asterisk Manager class
   *
@@ -54,7 +60,21 @@
     * @access public
     */
     public $socket = NULL;
+
+    //флаг сбоя сокета
     public $socket_error = false;
+    
+    //буфер сокета. читаем данные в буфер и потом его уже разбираем
+    private $socket_buffer = '';
+    
+    //последняя прочитанная из буффера строка (нужно для коррекции вывода ami)
+    //несколько евентов астериск почемуто может послать не разделяя пустой линией
+    //мы постараемся ее вставлять
+    private $socket_buffer_last = '';
+    
+    //очередь сообщений сначала прочитанные данные из буфера помещаем в очередь
+    //потом ее разбираем
+    private $events_queue = array();
 
    /**
     * Server we are connected to
@@ -128,25 +148,76 @@
     * @param array $parameters
     * @return array of parameters
     */
-    function send_request($action, $parameters=array(), $response=true)
+	function send_request($action, $parameters=array(), $response=true)
     {
-      $req = "Action: $action\r\n";
-      foreach($parameters as $var=>$val)
+		//$this->wait_response();
+		$req = "Action: $action\r\n";
+		foreach($parameters as $var=>$val)
         $req .= "$var: $val\r\n";
-      $req .= "\r\n";
-      fwrite($this->socket, $req);
-	  if (!$response) return NULL;
-      return $this->wait_response();
+		$req .= "\r\n";
+		$this->log("Request:\n".$req);
+		//fwrite($this->socket, $req);
+		socket_write($this->socket, $req);
+		if (!$response) return NULL;
+		return $this->wait_response();
     }
-	
+
+
+    
 	/**
-	2013-05-17 ������� ������� ������ ������ � ����������� ��������, ��� ����������� ����������
-	� ������� ������� ������� ���������� � ������ �������.
+	2013-05-17 добавлю функцию чтения сокета и обнаружения таймаута, ибо применяется библиотека
+	в скрипте который требует надежности в первую очередь.
 	*/
 	function read_socket()
 	{
-        $buffer = fgets($this->socket, 4096);
-		if ($buffer===false) $this->socket_error=true; //turning on PANIC!!!!! mode %-)
+        //$buffer = fgets($this->socket, 4096);
+        $r=array($this->socket);
+        $w=NULL;
+        $e=NULL;
+        //проверяем, что в сокете есть что почитать
+        $avail=socket_select($r,$w,$e,0);
+        if ($avail===false) {//ошибка
+				$this->socket_error=true;
+				//echo "SOCKET ERR!\n";
+		} elseif ($avail>0) {//чтото есть
+			//читаем
+			$read=socket_recv($this->socket,$buffer,65536,MSG_DONTWAIT);
+			if ($read===false) {//ошибка
+				$this->socket_error=true; //turning on PANIC!!!!! mode %-)
+			} elseif (strlen($buffer)) $this->socket_buffer.=($buffer."\r\n"); //добавляем прочитанное во внутреннее хранилище
+		}
+		$line=false;
+		if (strlen($this->socket_buffer)){
+			$crlf = strpos($this->socket_buffer, "\r\n");
+			if($crlf) {
+				$line=substr($this->socket_buffer,0,$crlf);
+				if ((getParName($line)=='Event')&&($this->socket_buffer_last!==''))
+					$line='';
+				else
+					$this->socket_buffer=trim(substr($this->socket_buffer,$crlf+2));
+			} else {
+				$line=trim($this->socket_buffer);
+				if ((getParName($line)=='Event')&&($this->socket_buffer_last!==''))
+					$line='';
+				else
+					$this->socket_buffer='';
+			}
+		}
+		$this->socket_buffer_last=$line;
+		return $line;
+	}
+
+	function read_socket_force($timeout=300)
+	{//принудительно ждет данных в сокете
+		$wtime=0;
+        do{
+			$buffer=$this->read_socket();
+			if ($buffer===false) {
+				usleep(20000);
+				$wtime+=20;
+				//echo ".";
+			}
+		} while (($buffer===false)&&(!$this->socket_error)&&($wtime<$timeout));
 		return $buffer;
 	}
 
@@ -161,59 +232,63 @@
     */
     function wait_response($allow_timeout=false)
     {
-      $timeout = false;
-      do
-      {
-        $type = NULL;
-        $parameters = array();
+		$timeout = false;
+		$response='';
+		do {
+			$type = NULL;
+			$parameters = array();
 
-        $buffer = trim($this->read_socket());
-		while(strlen($buffer)&&!$this->socket_error)
-        {
-          $a = strpos($buffer, ':');
-          if($a)
-          {
-            if(!count($parameters)) // first line in a response?
-            {
-              $type = strtolower(substr($buffer, 0, $a));
-              if(substr($buffer, $a + 2) == 'Follows')
-              {
-                // A follows response means there is a multiline field that follows.
-                $parameters['data'] = '';
-                $buff = $this->read_socket();
-                while(strlen($buff)&&(substr($buff, 0, 6) != '--END ')&&!$this->socket_error)
-                {
-					$parameters['data'] .= $buff;
-					$buff = $this->read_socket();
-                }
-              }
-            }
+			$buffer = trim($this->read_socket_force());
+			//if (strlen($buffer)) echo "firstline: $buffer\n";
+			while(strlen($buffer)&&!$this->socket_error) {
+				$response.=$buffer."\n";
+				$a = strpos($buffer, ':');
+				if($a) {
+					if(!count($parameters)) // first line in a response?
+					{
+						$type = strtolower(substr($buffer, 0, $a));
+						if(substr($buffer, $a + 2) == 'Follows') {
+							// A follows response means there is a multiline field that follows.
+							$parameters['data'] = '';
+							$buff = $this->read_socket_force();
+							while(strlen($buff)&&(substr($buff, 0, 6) != '--END ')&&!$this->socket_error){
+								$parameters['data'] .= $buff;
+								$buff = $this->read_socket_force();
+							}
+						}
+					}
 
-            // store parameter in $parameters
-            $parameters[substr($buffer, 0, $a)] = substr($buffer, $a + 2);
-          }
-          $buffer = trim($this->read_socket());
-        }
+					// store parameter in $parameters
+					$nm=substr($buffer, 0, $a);		//parameter name
+					$val=substr($buffer, $a + 2);	//and value
+					
+					$parameters[$nm] = $val;
+				}
+				//если начали читать, то должны дочитать сообщения до конца
+				$buffer = trim($this->read_socket_force());
+				//if (strlen($buffer)) echo "nextline: $buffer\n";
+				//if (!strlen($buffer)&&($buffer!==false)) echo "emptyline: $buffer\n";
+			}
 
-		if ($this->socket_error) return false;	//PANIC!!!!! MODE
-
+			if ($this->socket_error) return false;	//PANIC!!!!! MODE
         // process response
-        switch($type)
-        {
-          case '': // timeout occured
-            $timeout = $allow_timeout&&$timeout;
-            break;
-          case 'event':
-            $this->process_event($parameters);
-            break;
-          case 'response':
-            break;
-          default:
-            $this->log('Unhandled response packet from Manager: ' . print_r($parameters, true));
-            break;
-        }
-      } while($type != 'response' && !$timeout);
-      return $timeout?false:$parameters;
+			switch($type) {
+			case '': // timeout occured
+				$timeout = $allow_timeout&&$timeout;
+				break;
+			case 'event':
+				$this->process_event($parameters);
+				break;
+			case 'response':
+				$this->log("Response:\n".$response);
+				break;
+			default:
+				$this->log('Unhandled response packet from Manager: ' . print_r($parameters, true));
+				break;
+			}
+		} 
+		while($type != 'response' && !$timeout);
+		return $timeout?false:$parameters;
     }
 
    /**
@@ -226,47 +301,45 @@
     * @param string $secret
     * @return boolean true on success
     */
-    function connect($server=NULL, $username=NULL, $secret=NULL)
+	function connect($server=NULL, $username=NULL, $secret=NULL)
     {
-      // use config if not specified
-      if(is_null($server)) $server = $this->config['asmanager']['server'];
-      if(is_null($username)) $username = $this->config['asmanager']['username'];
-      if(is_null($secret)) $secret = $this->config['asmanager']['secret'];
+		// use config if not specified
+		if(is_null($server)) $server = $this->config['asmanager']['server'];
+		if(is_null($username)) $username = $this->config['asmanager']['username'];
+		if(is_null($secret)) $secret = $this->config['asmanager']['secret'];
 
-      // get port from server if specified
-      if(strpos($server, ':') !== false)
-      {
-        $c = explode(':', $server);
-        $this->server = $c[0];
-        $this->port = $c[1];
-      }
-      else
-      {
-        $this->server = $server;
-        $this->port = $this->config['asmanager']['port'];
-      }
+		// get port from server if specified
+		if(strpos($server, ':') !== false) {
+			$c = explode(':', $server);
+			$this->server = $c[0];
+			$this->port = $c[1];
+		} else {
+			$this->server = $server;
+			$this->port = $this->config['asmanager']['port'];
+		}
 
-      // connect the socket
-      $errno = $errstr = NULL;
-      $this->socket = @fsockopen($this->server, $this->port, $errno, $errstr);
-      if($this->socket == false)
-      {
-        $this->log("Unable to connect to manager {$this->server}:{$this->port} ($errno): $errstr");
-        return false;
-      }
-      $this->log("Socket opened");
+		// connect the socket
+		$errno = $errstr = NULL;
+		$this->socket = socket_create(AF_INET,SOCK_STREAM,SOL_TCP);
+		//$this->socket = @fsockopen($this->server, $this->port, $errno, $errstr);
+		if(socket_connect($this->socket,$this->server, $this->port) === false) {
+			$this->log("Unable to connect to manager {$this->server}:{$this->port} ($errno): $errstr");
+			return false;
+		}
+		$this->log("Socket opened");
+		socket_set_nonblock ($this->socket);
 	  
-	  stream_set_timeout ($this->socket,30);	
-	  /* 2013-05-17 �������, ����� ����� �������� � ��������� ���������.
-	  ��� � ���� �����, ��� ��������� ���������� ������� ���� � 20-55 �����, 
-	  ����� �������� ��������� �������� � ������ ��������
-	  � ����� ������ ���� ������������ ������� � ���������������
-	  30 ������ ���������� �������� ����� �� ���� ������ ����� ����� 
-	  � ���������� ������ ����� � ������ �������� ������ ������������ ����������*/
+	  //stream_set_timeout ($this->socket,30);	
+	  /* 2013-05-17 добавил, чтобы найти проблему в зависании менеджера.
+	  ибо с утра висит, что последнее обновление статуса было в 20-55 вчера, 
+	  очень вероятно программа зависает в случае таймаута
+	  в таком случае надо обнаруживать таймаут и пересоединяться
+	  30 секунд достаточно медленно чтобы не было дикого флуда ночью 
+	  и достаточно быстро чтобы в случае реальной ошибки восстановить соединение*/
 	  
 
       // read the header
-      $str = $this->read_socket();
+      $str = $this->read_socket_force();
       if($str == false)
       {
         // a problem.
@@ -302,7 +375,8 @@
     {
       if($this->_logged_in==TRUE)
         $this->logoff();
-      fclose($this->socket);
+      //fclose($this->socket);
+      socket_close($this->socket);
     }
 
    // *********************************************************************************************************
@@ -831,13 +905,19 @@
     {
       $ret = false;
       $e = strtolower($parameters['Event']);
-      $this->log("Got event.. $e");		
+      //$this->log("Got event.. $e");		
 
       $handler = '';
       if(isset($this->event_handlers[$e])) $handler = $this->event_handlers[$e];
       elseif(isset($this->event_handlers['*'])) $handler = $this->event_handlers['*'];
 
-      if(function_exists($handler))
+	  
+      if(is_array($handler)&&method_exists($handler[0],$handler[1]))
+      {
+		$this->log("Execute class method $handler[1]");
+		$ret=$handler[0]->$handler[1]($e, $parameters, $this->server, $this->port);
+	  }
+      elseif(function_exists($handler))
       {
         $this->log("Execute handler $handler");
         $ret = $handler($e, $parameters, $this->server, $this->port);
