@@ -30,6 +30,16 @@
 	ob_implicit_flush(false);
 	//set_time_limit(5);
 	//error_reporting(0);
+	
+	function con_rotor()
+	{	//рисует вращающийся курсор, дабы было в консоли было видно что процесс жив
+		global $conrotor_state;
+		$sym=array('| ','/ ','- ','--',' -',' \\ ',' |',' /',' -','--','- ','\\ ');
+		if (!isset($conrotor_state)) $conrotor_state=0;
+		$conrotor_state %= count($sym);
+		echo $sym[($conrotor_state++)]."\r";
+	}
+	
 
 	function initLog($debug=2,$logging=true,$agiVerb=false){
 		/* logging properties */

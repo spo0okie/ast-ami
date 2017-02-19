@@ -20,18 +20,17 @@ class astConnector {
 	public function get_chan_var($channel, $variable) 
 	{//возвращает переменную из канала
 		$response=$this->astman->GetVar($channel, $variable);
-		msg($this->p.'Got getvar responce:');
-		print_r($response);
+		//msg($this->p.'Got getvar responce:'.$response);
 		return $response['Value'];
 	}
 	
 	public function set_chan_var($channel, $variable, $value)
 	{
 		$this->astman->SetVar($channel, $variable, $value);
-		if ($this->get_chan_var($channel, $variable)!=$value)
+		/*if ($this->get_chan_var($channel, $variable)!=$value)
 		msg($this->p.'Err setting '.$variable.' into '.$channel.'!');
 		else
-		msg($this->p.'Sucessfully set '.$variable.' into '.$channel.'!');
+		msg($this->p.'Sucessfully set '.$variable.' into '.$channel.'!');*/
 	}
 
 	public function evt_def($evt, $par, $server=NULL, $port=NULL)

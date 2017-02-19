@@ -31,7 +31,6 @@
 		private $user;
 		private $password;
 		private $oci;
-		private $ws;
 
 		public function __construct($conParams=null) {
 			if (
@@ -180,7 +179,12 @@
 		}
 
 		public function sendData($data) {
-			var_dump($data);
+		//отправляем сообщение в вебсокеты
+			if (!$this->checkConnection()) {
+				msg ('Lost WS! Reconnecting ... ');
+				$this->reconnect();
+			}
+			$this->sendData('{"type":"event","caller":"'.$data['src'].'","callee":"'.$data['dst'].'","event":"'.$data['state'].'"}');
 		}
 
 		public function getType() {return 'ws';}

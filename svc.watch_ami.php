@@ -1,6 +1,10 @@
 #!/usr/bin/php -q
 <?php
-/* Файл сбора сообщений из AMI и слива в WS */
+/* Файл сбора сообщений из AMI и слива во внешние хранилища данных
+ * на текущий момент поддерживаются:
+ * - вывод в консоль 
+ * - запись в БД Oracle
+ * - запись в канал WebSockets (не проверялось давно, и с тех пор много кода поменялось) */
 
 //прикладные функции работы с логом файлами и проч. 
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'funcs.inc.php');	
@@ -18,7 +22,7 @@ require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.chans.php');
 $tmp='/tmp/';
 if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
     $tmp='c:\\temp\\';
-}//'
+}
 
 $logdir=$piddir=$tmp;	//куда будем писать логи и хартбиты сервисов
 $globLogFile=$logdir.DIRECTORY_SEPARATOR.basename(__FILE__).'.msg.log';
@@ -84,40 +88,10 @@ if (strlen($ocisrv=get_param('ocisrv'))) {
 
 
 
-
-
-/*	ФУНКЦИИ РАБОТЫ С КАНАЛАМИ АСТЕРИСКА */
-
-
-
-function chan_ws($name)
-{//пишем в вебсокеты информацию о канале
-	global $chanlist;
-	if (isset($chanlist[$name])) {
-		switch ($chanlist[$name]['state']){
-			case 'Ring':	ws_send($chanlist[$name]['src'],$chanlist[$name]['dst'],'ring'); break;
-			case 'Ringing':	ws_send($chanlist[$name]['dst'],$chanlist[$name]['src'],'ring'); break;
-			case 'Up':		ws_send($chanlist[$name]['src'],$chanlist[$name]['dst'],'connect'); break;
-		}
-	}
-}
-
-/*	ОБРАБОТЧИКИ СОБЫТИЙ ПОЛУЧАЕМЫХ ОТ АСТЕРИСКА */
-
-function con_rotor()
-{	//рисует вращающийся курсор, дабы было в консоли было видно что процесс жив
-	global $phpagirotor;
-	$sym=array('| ','/ ','- ','--',' -',' \\ ',' |',' /',' -','--','- ','\\ ');
-	if (!isset($phpagirotor)) $phpagirotor=0;
-	$phpagirotor %= count($sym);
-	echo $sym[($phpagirotor++)]."\r";
-}
-
 function AMI_defaultevent_handler($evt, $par, $server=NULL, $port=NULL)
 {//обработчик всех прочих событий от астериска
- //на нем висит обновление статусов процесса
- //перезапись сердцебиения и перерисовка курсора в консольке
- //имя файла формируется по имени канала WebSocket
+ //на нем висит перезапись файла сердцебиения и перерисовка курсора в консольке
+ //имя файла формируется по имени этого файла
  //это не очень удобно, можно придумать любой другой способ именования
  
 	//если раскомментировать 2 строки ниже, всю консоль зафлудит 
@@ -135,17 +109,6 @@ function AMI_defaultevent_handler($evt, $par, $server=NULL, $port=NULL)
 	//то имеет смысл убить процесс (PID на этот случай в файле)
 	//и создать новый экземпляр
 }	
-
-function ws_send($caller, $callee, $evt)
-{//отправляем сообщение в вебсокеты
-	global $ws;
-	if (!$ws->checkConnection()) {
-		msg ('Lost WS! Reconnecting ... ');
-		$ws->reconnect();
-		$ws->sendData('{"type":"subscribe","channel":"'.$wschan.'"}');
-	}
-	$ws->sendData('{"type":"event","caller":"'.$caller.'","callee":"'.$callee.'","event":"'.$evt.'"}');
-}
 
 //Коннектор к внешним БД
 $DBconnector = new globDataConnector($globConnParams);
@@ -172,8 +135,10 @@ while (true) {
 			msg($p.'AMI event waiting loop ... ');
 				pidWriteSvc(basename(__FILE__));//heartbeat
 
-				while ($AMIconnector->checkConnection()&&$DBconnector->checkConnection())	//пока с соединениями все ок
+				while ($AMIconnector->checkConnection()&&$DBconnector->checkConnection()) {	//пока с соединениями все ок
 					$AMIconnector->waitResponse();	//обрабатываем события
+					usleep(50000);	//если вдруг всосали и обработали всю очередь то отдохнуть 0.05с.
+				}
 
 			msg($p.'Loop exited. ');
 			$DBconnector->disconnect();

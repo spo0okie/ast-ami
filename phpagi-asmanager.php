@@ -61,20 +61,48 @@
     */
     public $socket = NULL;
 
-    //флаг сбоя сокета
+    /**
+     * флаг сбоя сокета
+     * 
+     * @access public
+     */
     public $socket_error = false;
     
-    //буфер сокета. читаем данные в буфер и потом его уже разбираем
+    /**
+     * буфер сокета. читаем данные в буфер и потом его уже разбираем
+     * @var string
+     */
     private $socket_buffer = '';
     
-    //последняя прочитанная из буффера строка (нужно для коррекции вывода ami)
-    //несколько евентов астериск почемуто может послать не разделяя пустой линией
-    //мы постараемся ее вставлять
+    /**
+     * последняя прочитанная из буффера строка (нужно для коррекции вывода ami) 
+     * несколько евентов астериск почемуто может послать не разделяя пустой линией,
+     * мы постараемся ее вставлять
+     * @var string  
+     */
     private $socket_buffer_last = '';
     
-    //очередь сообщений сначала прочитанные данные из буфера помещаем в очередь
-    //потом ее разбираем
+    /**
+     * куча ответов. Поскольку канал общения один, и ответ на запрос приходит не сразу, то ожидая
+     * свой ответ, можно получить чужой, тогда его надо положить в кучу 
+     * при ожидании ответа надо не только ждать его прям с текущего потока событий, а и из кучи
+     * @var array
+     */
+    private $responses_heap = array();
+    
+    /**
+     * очередь ивентов. поскольку обработчик какого либо ивента может создать остановку текущего
+     * ожидания ответа. то в случае ожидания ответа ивенты не будем обрабатывать, а сложим в очередь.
+     * обрабатывать ивенты будут только в случае ожидания чего угодно.
+     * @var array
+     */
     private $events_queue = array();
+    
+    /**
+     * Actions requested
+     * @var integer
+     */
+    private $actions_count = 0;
 
    /**
     * Server we are connected to
@@ -140,7 +168,21 @@
       if(!isset($this->config['asmanager']['username'])) $this->config['asmanager']['username'] = 'phpagi';
       if(!isset($this->config['asmanager']['secret'])) $this->config['asmanager']['secret'] = 'phpagi';
     }
+    
+    function getStatus(){
+    	return 'e:'.count($this->events_queue).',r:'.count($this->responses_heap);
+    }
 
+    /**
+     * Generates an unique in current instance ActionID same as UniquieID paramete ins asterisk 
+     */
+    function generateAID()
+    {
+    	$cnt=$this->actions_count++;
+    	$tm=time();
+    	return "$tm.$cnt";
+    }
+    
    /**
     * Send a request
     *
@@ -151,22 +193,27 @@
 	function send_request($action, $parameters=array(), $response=true)
     {
 		//$this->wait_response();
-		$req = "Action: $action\r\n";
+        if (!isset($parameters['ActionID'])) {
+        	$parameters['ActionID']=$this->generateAID();
+        }    	
+        $req = "Action: $action\r\n";
 		foreach($parameters as $var=>$val)
         $req .= "$var: $val\r\n";
 		$req .= "\r\n";
-		$this->log("Request:\n".$req);
+		//$this->log("Request:\n".$req);
 		//fwrite($this->socket, $req);
 		socket_write($this->socket, $req);
 		if (!$response) return NULL;
-		return $this->wait_response();
+		$answ=$this->wait_response($parameters['ActionID']);
+		//echo "GOT ANSWER:".print_r($answ);
+		return $answ;
     }
 
 
     
 	/**
-	2013-05-17 добавлю функцию чтения сокета и обнаружения таймаута, ибо применяется библиотека
-	в скрипте который требует надежности в первую очередь.
+	 * Читает из сокета в буффер и из буффера отдает по одной строке
+	 * Аналог gets  
 	*/
 	function read_socket()
 	{
@@ -181,22 +228,29 @@
 				//echo "SOCKET ERR!\n";
 		} elseif ($avail>0) {//чтото есть
 			//читаем
-			$read=socket_recv($this->socket,$buffer,65536,MSG_DONTWAIT);
+			$read=socket_recv($this->socket,$buffer,65536,0); //got Use of undefined constant MSG_DONTWAIT in some cases
 			if ($read===false) {//ошибка
-				$this->socket_error=true; //turning on PANIC!!!!! mode %-)
-			} elseif (strlen($buffer)) $this->socket_buffer.=($buffer."\r\n"); //добавляем прочитанное во внутреннее хранилище
+				if (socket_last_error($this->socket)===0)
+					socket_clear_error($this->socket);
+				else
+					$this->socket_error=true; //turning on PANIC!!!!! mode %-)
+			} elseif (strlen($buffer)) {
+				//echo "RCVD:--< $buffer >--\n";
+				$this->socket_buffer.=$buffer; //добавляем прочитанное во внутреннее хранилище
+			}
 		}
+		//echo $buffer;
 		$line=false;
 		if (strlen($this->socket_buffer)){
 			$crlf = strpos($this->socket_buffer, "\r\n");
-			if($crlf) {
+			if($crlf!==FALSE) {
 				$line=substr($this->socket_buffer,0,$crlf);
 				if ((getParName($line)=='Event')&&($this->socket_buffer_last!==''))
 					$line='';
 				else
-					$this->socket_buffer=trim(substr($this->socket_buffer,$crlf+2));
+					$this->socket_buffer=substr($this->socket_buffer,$crlf+2);
 			} else {
-				$line=trim($this->socket_buffer);
+				$line=$this->socket_buffer;
 				if ((getParName($line)=='Event')&&($this->socket_buffer_last!==''))
 					$line='';
 				else
@@ -204,6 +258,7 @@
 			}
 		}
 		$this->socket_buffer_last=$line;
+		//echo "Giving line:$line\n";
 		return $line;
 	}
 
@@ -218,77 +273,109 @@
 				//echo ".";
 			}
 		} while (($buffer===false)&&(!$this->socket_error)&&($wtime<$timeout));
+		//print_r($this->socket_buffer);
 		return $buffer;
 	}
 
+	/**
+	 * Читает одно сообщение из буффера и кладет его в кучку
+	 */
+	function read_message()
+	{
+		$type = NULL;
+		$parameters = array();
+		$response='';
+	
+		$buffer = trim($this->read_socket());
+		//if (strlen($buffer)) echo "firstline: $buffer\n";
+		while(strlen($buffer)&&!$this->socket_error) {
+			$response.=$buffer."\n";
+			$a = strpos($buffer, ':');
+			if($a) {
+				if(!count($parameters)) // first line in a response?
+				{
+					$type = strtolower(substr($buffer, 0, $a));
+					if(substr($buffer, $a + 2) == 'Follows') {
+						// A follows response means there is a multiline field that follows.
+						$parameters['data'] = '';
+						$buff = $this->read_socket_force();
+						while(strlen($buff)&&(substr($buff, 0, 6) != '--END ')&&!$this->socket_error){
+							$parameters['data'] .= $buff;
+							$buff = $this->read_socket_force();
+						}
+					}
+				}
+
+				// store parameter in $parameters
+				$nm=substr($buffer, 0, $a);		//parameter name
+				$val=substr($buffer, $a + 2);	//and value
+					
+				$parameters[$nm] = $val;
+			}
+			//если начали читать, то должны дочитать сообщения до конца
+			$buffer = trim($this->read_socket_force());
+			//if (strlen($buffer)) echo "nextline: $buffer\n";
+			//if (!strlen($buffer)&&($buffer!==false)) echo "emptyline: $buffer\n";
+		}
+			
+	
+		// кладем сообщения в кучи
+		switch($type) {
+			case 'event':
+				$this->events_queue[count($this->events_queue)]=$parameters;
+				break;
+			case 'response':
+				if (isset($parameters['ActionID']))
+					$this->responses_heap[$parameters['ActionID']]=$parameters;
+				else{
+					$this->log('WARNING: Got respose with an empty Action ID! : ' . print_r($parameters, true));
+					$this->responses_heap[]=$parameters;
+				}
+				break;
+			default:
+				if (isset($parameters['0'])&&strlen($parameters['0'])) //чтото есть, но хз что это
+					$this->log('Unhandled message from Manager: ' . print_r($parameters, true));
+				break;
+		}
+	}
+
+	function fetch_event(){
+		if (!isset($this->events_queue[0])) return NULL;
+		$parameters=$this->events_queue[0];
+		for ($i=0;$i<count($this->events_queue)-2;$i++)
+			$this->events_queue[$i]=$this->events_queue[$i+1];
+		unset($this->events_queue[count($this->events_queue)-1]);
+		return $parameters;
+	}
+	
    /**
     * Wait for a response
     *
     * If a request was just sent, this will return the response.
     * Otherwise, it will loop forever, handling events.
     *
+    * @param string $ID wait for exact response with exact actionid
     * @param boolean $allow_timeout if the socket times out, return an empty array
     * @return array of parameters, empty on timeout
     */
-    function wait_response($allow_timeout=false)
+    function wait_response($ID=NULL)
     {
-		$timeout = false;
-		$response='';
-		do {
-			$type = NULL;
-			$parameters = array();
-
-			$buffer = trim($this->read_socket_force());
-			//if (strlen($buffer)) echo "firstline: $buffer\n";
-			while(strlen($buffer)&&!$this->socket_error) {
-				$response.=$buffer."\n";
-				$a = strpos($buffer, ':');
-				if($a) {
-					if(!count($parameters)) // first line in a response?
-					{
-						$type = strtolower(substr($buffer, 0, $a));
-						if(substr($buffer, $a + 2) == 'Follows') {
-							// A follows response means there is a multiline field that follows.
-							$parameters['data'] = '';
-							$buff = $this->read_socket_force();
-							while(strlen($buff)&&(substr($buff, 0, 6) != '--END ')&&!$this->socket_error){
-								$parameters['data'] .= $buff;
-								$buff = $this->read_socket_force();
-							}
-						}
-					}
-
-					// store parameter in $parameters
-					$nm=substr($buffer, 0, $a);		//parameter name
-					$val=substr($buffer, $a + 2);	//and value
-					
-					$parameters[$nm] = $val;
-				}
-				//если начали читать, то должны дочитать сообщения до конца
-				$buffer = trim($this->read_socket_force());
-				//if (strlen($buffer)) echo "nextline: $buffer\n";
-				//if (!strlen($buffer)&&($buffer!==false)) echo "emptyline: $buffer\n";
-			}
-
-			if ($this->socket_error) return false;	//PANIC!!!!! MODE
-        // process response
-			switch($type) {
-			case '': // timeout occured
-				$timeout = $allow_timeout&&$timeout;
-				break;
-			case 'event':
-				$this->process_event($parameters);
-				break;
-			case 'response':
-				$this->log("Response:\n".$response);
-				break;
-			default:
-				$this->log('Unhandled response packet from Manager: ' . print_r($parameters, true));
-				break;
-			}
-		} 
-		while($type != 'response' && !$timeout);
-		return $timeout?false:$parameters;
+    	$this->read_message();
+		if ($ID!==NULL){//если ждем конкретный ответ 
+			do {//проверяем кучу
+				//если есть такой ответ
+				if (isset($this->responses_heap[$ID])) {
+					$parameters=$this->responses_heap[$ID];
+					unset ($this->responses_heap[$ID]);
+					return $parameters;
+				} else $this->read_message();
+			} while (TRUE);
+		} else {//иначе обрабатываем ивенты
+			do {
+				$this->process_event($this->fetch_event());
+    			$this->read_message();
+			} while (count($this->events_queue));
+		}
     }
 
    /**
@@ -339,7 +426,7 @@
 	  
 
       // read the header
-      $str = $this->read_socket_force();
+      $str = $this->read_socket_force(1000);
       if($str == false)
       {
         // a problem.
@@ -839,7 +926,7 @@
       if($this->pagi != false)
         $this->pagi->conlog($message, $level);
       else
-        msg('AstManager: ' . $message,5);
+        msg('AstManager('.$this->getStatus().'): ' . $message,5);
     }
 
    /**
