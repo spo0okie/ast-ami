@@ -914,18 +914,18 @@
 	  
       if(is_array($handler)&&method_exists($handler[0],$handler[1]))
       {
-		$this->log("Execute class method $handler[1]");
+		$this->log("Execute class method $handler[1]",6);
 		$ret=$handler[0]->$handler[1]($e, $parameters, $this->server, $this->port);
 	  }
       elseif(function_exists($handler))
       {
-        $this->log("Execute handler $handler");
+        $this->log("Execute handler $handler",6);
         $ret = $handler($e, $parameters, $this->server, $this->port);
       } elseif(function_exists('AMI_defaultevent_handler')) {
         $ret = AMI_defaultevent_handler($e, $parameters, $this->server, $this->port);
       }
       else
-        $this->log("No event handler for event '$e'");
+		$this->log("No event handler for event '$e'",4);
       return $ret;
     }
   }
