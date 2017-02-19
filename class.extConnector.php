@@ -86,11 +86,11 @@
 		public function sendData($data) {
 			$datastr=$data['src'].' '.$data['state'].' '.$data['dst'].' rec: '.$data['monitor'];
 			if (strlen($data['src'])<5) {
-				msg($this->p.'Channel update ignored (To short CallerID):' . $datastr ,3);
+				msg($this->p.'Channel update ignored (Too short CallerID):' . $datastr ,3);
 				return true;
 			}
 			if (strlen($data['dst'])>4) {
-				msg($this->p.'Channel update ignored (To long Callee):' . $datastr ,3);
+				msg($this->p.'Channel update ignored (Too long Callee):' . $datastr ,3);
 				return true;
 			}
 			$oci_command = "begin ics.services.calls_queue('".$data['src']."','".$data['dst']."','',to_date('". date('d.m.Y H:i:s')."','dd.mm.yyyy hh24:mi:ss'),'".$data['state']."','".$data['monitor']."'); end;";

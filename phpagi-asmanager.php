@@ -143,6 +143,9 @@
      * @var boolean
      */
     private $_logged_in = FALSE;
+
+
+	private $socket_last_read=0;
     
    /**
     * Constructor
@@ -200,8 +203,7 @@
 		foreach($parameters as $var=>$val)
         $req .= "$var: $val\r\n";
 		$req .= "\r\n";
-		//$this->log("Request:\n".$req);
-		//fwrite($this->socket, $req);
+		$this->log("Request:\n".print_r($parameters,true),5);
 		socket_write($this->socket, $req);
 		if (!$response) return NULL;
 		$answ=$this->wait_response($parameters['ActionID']);
@@ -230,9 +232,9 @@
 			//читаем
 			$read=socket_recv($this->socket,$buffer,65536,0); //got Use of undefined constant MSG_DONTWAIT in some cases
 			if ($read===false) {//ошибка
-				if (socket_last_error($this->socket)===0)
+	/*			if (socket_last_error($this->socket)===0)
 					socket_clear_error($this->socket);
-				else
+				else*/
 					$this->socket_error=true; //turning on PANIC!!!!! mode %-)
 			} elseif (strlen($buffer)) {
 				//echo "RCVD:--< $buffer >--\n";
@@ -284,12 +286,9 @@
 	{
 		$type = NULL;
 		$parameters = array();
-		$response='';
 	
 		$buffer = trim($this->read_socket());
-		//if (strlen($buffer)) echo "firstline: $buffer\n";
 		while(strlen($buffer)&&!$this->socket_error) {
-			$response.=$buffer."\n";
 			$a = strpos($buffer, ':');
 			if($a) {
 				if(!count($parameters)) // first line in a response?
@@ -305,23 +304,16 @@
 						}
 					}
 				}
-
-				// store parameter in $parameters
-				$nm=substr($buffer, 0, $a);		//parameter name
-				$val=substr($buffer, $a + 2);	//and value
-					
-				$parameters[$nm] = $val;
+				$parameters[substr($buffer, 0, $a)] = substr($buffer, $a + 2);
 			}
 			//если начали читать, то должны дочитать сообщения до конца
 			$buffer = trim($this->read_socket_force());
-			//if (strlen($buffer)) echo "nextline: $buffer\n";
-			//if (!strlen($buffer)&&($buffer!==false)) echo "emptyline: $buffer\n";
 		}
-			
-	
+		
 		// кладем сообщения в кучи
 		switch($type) {
 			case 'event':
+				$this->log("Event: ".print_r($parameters,true),5);
 				$this->events_queue[count($this->events_queue)]=$parameters;
 				break;
 			case 'response':
@@ -331,6 +323,7 @@
 					$this->log('WARNING: Got respose with an empty Action ID! : ' . print_r($parameters, true));
 					$this->responses_heap[]=$parameters;
 				}
+				$this->log("Response: ".print_r($parameters,true),5);
 				break;
 			default:
 				if (isset($parameters['0'])&&strlen($parameters['0'])) //чтото есть, но хз что это

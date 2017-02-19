@@ -28,7 +28,7 @@ function chanGetSrc($name)	{
 }
 
 class eventItem {
-	private $par; //массив параметр=>значение из которого и состоит евент
+	public $par; //массив параметр=>значение из которого и состоит евент
 
 	public function __construct($par) {
 		$this->par=$par;
@@ -188,11 +188,14 @@ class chanList {
 
 	public function setMonitorHook($evt) {//устанавливает имя файла записи звонка в переменную, которая расползется по всем дочерним каналам
 		msg ($this->p().'Pushing monitor file to chan variable...',2);
-		$this->ami->set_chan_var($evt->getChan(),'__MonitorFileHook',$evt->getMonitor());
+		$this->ami->set_chan_var($evt->getChan(),'__Recordfile',$evt->getMonitor());
 	}
 
 	public function getMonitorHook($evt) {//возвращает имя файла записи звонка
-		return $this->ami->get_chan_var($evt->getChan(),'MonitorFileHook');
+		$this->ami->get_chan_var($evt->getChan(),'Recordfile');
+		$parts=explode(',',$this->ami->get_chan_var($evt->getChan(),'Recordfile'));
+		$tokens=explode('/',$parts[count($parts)-1]);
+		return $tokens[count($tokens)-1];
 	}
 
 	public function upd($par)
@@ -201,14 +204,15 @@ class chanList {
 		if (NULL!==($cname=$evt->getChan())) //имя канала вернется если в пераметрах события оно есть и если канал при этом не виртуальный
 		{
 			//echo "Got chan: $cname";
+			//echo "Got Event: ".print_r($evt->par);
 			if (!isset($this->list[$cname])) $this->list[$cname]=['src'=>NULL,'dst'=>NULL,'state'=>NULL,'monitor'=>NULL,'reversed'=>false];        //создаем канал если его еще нет в списке
 			$src	=chanList::getSrc($cname,$evt);	//ищем вызывающего
 			$dst	=$evt->getDst();				//ищем вызываемого
-			if ($mon=$evt->getMonitor()) {
+/*			if ($mon=$evt->getMonitor()) {
 				$this->list[$cname]['monitor']=$mon;
 				echo "Got record file: $mon\n";
 				$this->setMonitorHook($evt);
-			}
+			}*/
 			$oldstate=$this->list[$cname]['state'];	//запоминаем старый статус
 
 			//вариант однократного обновления данных о номерах в канале
@@ -225,6 +229,7 @@ class chanList {
 			if (isset($dst)) $this->list[$cname]['dst']=$dst;
 
 			$this->list[$cname]['state']=$evt->getState();//устанавливаем статус
+			if (!isset($this->list[$cname]['monitor'])) $this->list[$cname]['monitor']=$this->getMonitorHook($evt);
 			
 			//проверяем что это не исходящий звонок начинающийся со звонка на аппарат звонящего
 			//с демонстрацией callerID абонента куда будет совершен вызов, если снять трубку
@@ -240,7 +245,7 @@ class chanList {
 		 	}
 		}
 		unset ($evt);
-		//$this->dumpAll();
+//		$this->dumpAll();
 	}
 	
 	public function ren($par)
@@ -286,7 +291,7 @@ class chanList {
 				case 'Up':      $st=' <-(Up)->' ; break;
 				default:        $st=' (Unknown) '; break;
 			}
-			echo $name.':   '.$this->list[$name]['src'].$st.$this->list[$name]['dst']."	".($this->list[$name]['reversed']?'reversed':'straight')."\n";
+			echo $name.':   '.$this->list[$name]['src'].$st.$this->list[$name]['dst']."	".($this->list[$name]['reversed']?'reversed':'straight').' Rec:'.$this->list[$name]['monitor']."\n";
 		}
 	}
 }
