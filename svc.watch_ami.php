@@ -19,10 +19,11 @@ require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.chans.php');
 
 
 //папка логов
-$tmp='/tmp/';
+$tmp='/var/log/asterisk/';
 if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
     $tmp='c:\\temp\\';
 }
+// '*/
 
 $logdir=$piddir=$tmp;	//куда будем писать логи и хартбиты сервисов
 $globLogFile=$logdir.DIRECTORY_SEPARATOR.basename(__FILE__).'.msg.log';

@@ -42,7 +42,7 @@ class astConnector {
 		//посмотреть какая нам информация приходит с теми событиями
 		//на которые повешен этот обработчик
 		global $globVerbose;
-		if ($globVerbose>4) {
+		if ($globVerbose>5) {
 			msg('Got evt "'.$evt.'"');
 			print_r($par);
 		}

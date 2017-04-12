@@ -313,7 +313,7 @@
 		// кладем сообщения в кучи
 		switch($type) {
 			case 'event':
-				$this->log("Event: ".print_r($parameters,true),5);
+				$this->log("Event: ".print_r($parameters,true),6);
 				$this->events_queue[count($this->events_queue)]=$parameters;
 				break;
 			case 'response':
@@ -323,7 +323,7 @@
 					$this->log('WARNING: Got respose with an empty Action ID! : ' . print_r($parameters, true));
 					$this->responses_heap[]=$parameters;
 				}
-				$this->log("Response: ".print_r($parameters,true),5);
+				$this->log("Response: ".print_r($parameters,true),6);
 				break;
 			default:
 				if (isset($parameters['0'])&&strlen($parameters['0'])) //чтото есть, но хз что это
@@ -919,7 +919,7 @@
       if($this->pagi != false)
         $this->pagi->conlog($message, $level);
       else
-        msg('AstManager('.$this->getStatus().'): ' . $message,5);
+        msg('AstManager('.$this->getStatus().'): ' . $message,$level);
     }
 
    /**
