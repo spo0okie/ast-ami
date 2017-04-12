@@ -204,7 +204,7 @@ class chanList {
 		if (NULL!==($cname=$evt->getChan())) //имя канала вернется если в пераметрах события оно есть и если канал при этом не виртуальный
 		{
 			//echo "Got chan: $cname";
-			//echo "Got Event: ".print_r($evt->par);
+			msg($this->p().'upd got event: '.dumpEvent($evt->par),HANDLED_EVENTS_LOG_LEVEL);
 			if (!isset($this->list[$cname])) $this->list[$cname]=['src'=>NULL,'dst'=>NULL,'state'=>NULL,'monitor'=>NULL,'reversed'=>false];        //создаем канал если его еще нет в списке
 			$src	=chanList::getSrc($cname,$evt);	//ищем вызывающего
 			$dst	=$evt->getDst();				//ищем вызываемого
@@ -243,6 +243,8 @@ class chanList {
 				if (!strlen($this->list[$cname]['monitor'])) $this->list[$cname]['monitor']=$this->getMonitorHook($evt);
 				$this->sendData($this->ringDirCheckData($cname));
 		 	}
+		} else {
+			msg($this->p().'Event ignored: incorrect channel/tec:'.dumpEvent($par));
 		}
 		unset ($evt);
 //		$this->dumpAll();

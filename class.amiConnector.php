@@ -41,11 +41,10 @@ class astConnector {
 		//если раскомментировать то что ниже, то в консольке можно будет
 		//посмотреть какая нам информация приходит с теми событиями
 		//на которые повешен этот обработчик
-		global $globVerbose;
-		if ($globVerbose>5) {
-			msg('Got evt "'.$evt.'"');
-			print_r($par);
-		}
+
+		//нет смысла логировать тут, оно пото отлогируется в upd
+		//msg('Got evt '.dumpEvent($par)HANDLED_EVENTS_LOG_LEVEL); 
+
 		global $chans;
 		$this->chans->upd($par);
 		if (function_exists($this->defaultEvtHandler)) {

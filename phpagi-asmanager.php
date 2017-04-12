@@ -26,10 +26,32 @@
   *
   */
 
+  /**
+  * Текущий режим работы такой: все данные из протокола AMI скачиваются и складываются в
+  * 2 кучки: евентов и ответов на запросы.
+  * сделано это для асинхронного вхаимодействия, поскольку иначе может случиться так,
+  * что обработчик какого-то события сделает запрос в АМИ, и вместо ответа получит
+  * новые евент, на который запустится обработчик, и т.д. А так если он вместо ответа 
+  * получит новые евент, он его просто сложит в кучку и дождется своего ответа.  
+  */
 
+
+	define('REQUESTS_LOG_LEVEL',4);		//уровень логирования для отображения запросов
+	define('RESPONCES_LOG_LEVEL',4);		//уровень логирования для отображения ответов
+	define('HANDLED_EVENTS_LOG_LEVEL',5);	//уровень логирования для отображения обрабатываемых событий
+	define('IGNORED_EVENTS_LOG_LEVEL',6);	//уровень логирования для отображения обрабатываемых но отброшенных событий
+	define('EVENTS_LOG_LEVEL',7);			//уровень логирования всех событий
+	
 	function getParName($buffer){
 		$a = strpos($buffer, ':');
 		return $a?substr($buffer, 0, $a):false;
+	}
+	
+	function dumpEvent($params){
+		$data='';
+		foreach ($params as $key => $value)
+			$data.=$key.' => '.$value."\n";
+		return $data;
 	}
 
   	if(!class_exists('AGI'))
@@ -172,12 +194,17 @@
       if(!isset($this->config['asmanager']['secret'])) $this->config['asmanager']['secret'] = 'phpagi';
     }
     
+    /*
+     * Returns cuurent count of events and responses in heaps
+     * @return strin current status
+     */
     function getStatus(){
-    	return 'e:'.count($this->events_queue).',r:'.count($this->responses_heap);
+    	return 'evt:'.count($this->events_queue).',rsp:'.count($this->responses_heap);
     }
 
     /**
-     * Generates an unique in current instance ActionID same as UniquieID paramete ins asterisk 
+     * Generates an unique in current instance ActionID same as UniquieID paramete ins asterisk
+     * @return string unique action id 
      */
     function generateAID()
     {
@@ -203,7 +230,7 @@
 		foreach($parameters as $var=>$val)
         $req .= "$var: $val\r\n";
 		$req .= "\r\n";
-		$this->log("Request:\n".print_r($parameters,true),5);
+		$this->log("Request:\n".dumpEvent($parameters),REQUESTS_LOG_LEVEL);
 		socket_write($this->socket, $req);
 		if (!$response) return NULL;
 		$answ=$this->wait_response($parameters['ActionID']);
@@ -313,9 +340,10 @@
 		// кладем сообщения в кучи
 		switch($type) {
 			case 'event':
-				$this->log("Event: ".print_r($parameters,true),6);
+				$this->log("Event: ".dumpEvent($parameters,true),EVENTS_LOG_LEVEL);
 				$this->events_queue[count($this->events_queue)]=$parameters;
 				break;
+			
 			case 'response':
 				if (isset($parameters['ActionID']))
 					$this->responses_heap[$parameters['ActionID']]=$parameters;
@@ -323,8 +351,9 @@
 					$this->log('WARNING: Got respose with an empty Action ID! : ' . print_r($parameters, true));
 					$this->responses_heap[]=$parameters;
 				}
-				$this->log("Response: ".print_r($parameters,true),6);
+				$this->log("Response: ".dumpEvent($parameters,true),RESPONCES_LOG_LEVEL);
 				break;
+			
 			default:
 				if (isset($parameters['0'])&&strlen($parameters['0'])) //чтото есть, но хз что это
 					$this->log('Unhandled message from Manager: ' . print_r($parameters, true));
@@ -332,6 +361,10 @@
 		}
 	}
 
+	/*
+	 * Вытаскивает евент из кучи по принципу fifo и удаляет его там
+	 * @return array parameters
+	 */
 	function fetch_event(){
 		if (!isset($this->events_queue[0])) return NULL;
 		$parameters=$this->events_queue[0];
@@ -983,6 +1016,8 @@
     */
     function process_event($parameters)
     {
+    	
+    	// для логирования используется IGNORED_EVENTS_LOG_LEVEL, поскольку неясно отфильтруются они далее или нет
       $ret = false;
       $e = strtolower($parameters['Event']);
       //$this->log("Got event.. $e");		
@@ -994,13 +1029,13 @@
 	  
       if(is_array($handler)&&method_exists($handler[0],$handler[1]))
       {
-		$this->log("Execute class method $handler[1]",6);
+		$this->log("processing $e => ".get_class($handler[0])."::$handler[1]",IGNORED_EVENTS_LOG_LEVEL);
 		$ret=$handler[0]->$handler[1]($e, $parameters, $this->server, $this->port);
 	  }
       elseif(function_exists($handler))
       {
-        $this->log("Execute handler $handler",6);
-        $ret = $handler($e, $parameters, $this->server, $this->port);
+      	 $this->log("processing $e => $handler",IGNORED_EVENTS_LOG_LEVEL);
+      	 $ret = $handler($e, $parameters, $this->server, $this->port);
       } elseif(function_exists('AMI_defaultevent_handler')) {
         $ret = AMI_defaultevent_handler($e, $parameters, $this->server, $this->port);
       }
