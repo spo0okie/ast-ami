@@ -227,8 +227,8 @@ class chanList {
 			/* обновляем информацию всегда, когда есть что обновить (больше обновлений) */
 			if (isset($src)) $this->list[$cname]['src']=$src;
 			if (isset($dst)) $this->list[$cname]['dst']=$dst;
-
-			$this->list[$cname]['state']=$evt->getState();//устанавливаем статус
+			$newstate=$evt->getState();
+			if (!is_null($newstate)) $this->list[$cname]['state']=$newstate;//устанавливаем статус
 			if (!isset($this->list[$cname]['monitor'])) $this->list[$cname]['monitor']=$this->getMonitorHook($evt);
 			
 			//проверяем что это не исходящий звонок начинающийся со звонка на аппарат звонящего
@@ -247,7 +247,7 @@ class chanList {
 			msg($this->p().'Event ignored: incorrect channel/tec:'.dumpEvent($par));
 		}
 		unset ($evt);
-//		$this->dumpAll();
+		$this->dumpAll();
 	}
 	
 	public function ren($par)
@@ -263,7 +263,7 @@ class chanList {
 			unset ($this->list[$chan]);
 		}
 		unset ($evt);
-//		$this->dumpAll();
+		$this->dumpAll();
 	}
 
 	public function del($par)
@@ -274,17 +274,17 @@ class chanList {
 			unset ($this->list[$chan]);
 		}
 		unset ($evt);
-//		$this->dumpAll();
+		$this->dumpAll();
 	}
 
 	private function dumpAll()
 	{//дампит в консоль список известных на текущий момент соединений с их статусами
-		echo "chan list {\n";
-		foreach ($this->list as $name=>$chan) $this->dump($name);
-		echo "}\n";
+		$list=array();
+		foreach ($this->list as $name=>$chan) $list[]=$this->chanInfo($name)."\n";
+		msg($this->p()."Current chans: \n".implode('',$list),HANDLED_EVENTS_LOG_LEVEL);
 	}
 
-	private function dump($name)
+	private function chanInfo($name)
 	{//дампит в консоль один канал
 		if (isset($this->list[$name])) {
 			switch ($this->list[$name]['state']){
@@ -293,7 +293,13 @@ class chanList {
 				case 'Up':      $st=' <-(Up)->' ; break;
 				default:        $st=' (Unknown) '; break;
 			}
-			echo $name.':   '.$this->list[$name]['src'].$st.$this->list[$name]['dst']."	".($this->list[$name]['reversed']?'reversed':'straight').' Rec:'.$this->list[$name]['monitor']."\n";
-		}
+			return 'chan '.$name.':   '.$this->list[$name]['src'].$st.$this->list[$name]['dst']."	".($this->list[$name]['reversed']?'reversed':'straight').' Rec:'.$this->list[$name]['monitor'];
+		} else return NULL;
+	}
+
+	private function dump($name)
+	{//дампит в консоль один канал
+		if (isset($this->list[$name])) 
+			msg($this->chanInfo($name),HANDLED_EVENTS_LOG_LEVEL);
 	}
 }

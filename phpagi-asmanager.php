@@ -371,6 +371,7 @@
 		for ($i=0;$i<count($this->events_queue)-2;$i++)
 			$this->events_queue[$i]=$this->events_queue[$i+1];
 		unset($this->events_queue[count($this->events_queue)-1]);
+		$this->log($parameters['Event'].' fetched from queue',IGNORED_EVENTS_LOG_LEVEL);
 		return $parameters;
 	}
 	
@@ -1040,7 +1041,7 @@
         $ret = AMI_defaultevent_handler($e, $parameters, $this->server, $this->port);
       }
       else
-		$this->log("No event handler for event '$e'",4);
+		$this->log("No event handler for event '$e'",REQUESTS_LOG_LEVEL);
       return $ret;
     }
   }
