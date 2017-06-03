@@ -27,28 +27,56 @@ function chanGetSrc($name)	{
 		return substr($name,$slash+1,$numend-$slash-1); //ищем номер звонящего абонента в имени канала
 }
 
+/*
+ * Класс события полученного от AMI
+    [Event] => Newexten
+    [Privilege] => dialplan,all
+    [Channel] => SIP/telphin_yamal-000008b7
+    [Context] => macro-RecordCall
+    [Extension] => s
+    [Priority] => 6
+    [Application] => Monitor
+    [AppData] => wav,/home/record/yamal/_current/20170210-221016-+79193393655-IN-+79193393655
+    [Uniqueid] => 1486746616.2615
+ *
+ */
 class eventItem {
-	public $par; //массив параметр=>значение из которого и состоит евент
+	/*
+	 * массив параметр=>значение из которого и состоит евент
+	 */
+	public $par; 
 
+	/*
+	 * @param array $par массив элементов полученный от AMI
+	 */
 	public function __construct($par) {
 		$this->par=$par;
 		//echo "New event:\n";
 		//print_r ($this->par);
 	}
 
-	public function exists($item) { //возвращает если итем есть и не пустой
-		return isset($this->par[$item])&&strlen($this->par[$item]);
-	}
+	/*
+	 * Возвращает наличие элемента $item в эвенте
+	 * @param string $item имя параметра
+	 * @return bool признак наличия элемента в эвенте
+	 */
+	public function exists($item) {return isset($this->par[$item])&&strlen($this->par[$item]);}
 
-	public function numeric($item) { //возвращает если итем есть и числовой
-		return $this->exists($item)&&is_numeric($this->par[$item]);
-	}
+	/*
+	 * возвращает true, если итем есть и числовой
+	 * @param string $item имя параметра
+	 * @return bool признак наличия числового элемента в эвенте
+	 */
+	public function numeric($item) {return $this->exists($item)&&is_numeric($this->par[$item]);}
 
-	public function getPar($name,$default=NULL){
-		if ($this->exists($name)) return $this->par[$name];
-		return $default;
-	}
+	/*
+	 * получить значение элемента или "по умолчанию", если элемента нет
+	 * @param string $name имя элемента
+	 * @param string $default значение по умолчанию
+	 */
+	public function getPar($name,$default=NULL){($this->exists($name))?$this->par[$name]:$default;}
 
+	
 	public function getSrc() {//ищем номер звонящего абонента в параметрах ивента
 		return $this->getPar('CallerIDNum');
 	}
@@ -64,18 +92,6 @@ class eventItem {
 			return $this->getPar('Channel');
 		return NULL;
 	}
-/*Array
-(
-    [Event] => Newexten
-    [Privilege] => dialplan,all
-    [Channel] => SIP/telphin_yamal-000008b7
-    [Context] => macro-RecordCall
-    [Extension] => s
-    [Priority] => 6
-    [Application] => Monitor
-    [AppData] => wav,/home/record/yamal/_current/20170210-221016-+79193393655-IN-+79193393655
-    [Uniqueid] => 1486746616.2615
-)*/
 
 	public function getMonitor() {//возвращает имя файла записи звонка
 		if ($this->getPar('Application')=='Monitor') {
