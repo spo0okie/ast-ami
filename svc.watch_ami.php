@@ -17,6 +17,8 @@ require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.amiConnector.php')
 //класс управления списком каналов
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.chans.php');	
 
+error_reporting(E_ALL);
+
 
 //папка логов
 $tmp='/var/log/asterisk/';

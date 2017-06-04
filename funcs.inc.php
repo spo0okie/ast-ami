@@ -84,7 +84,7 @@
 		$f = fopen($file,"w");
 		$pid=getmypid();
 		if ($res=fwrite($f,$pid))
-			msg($p.'wrote '.$pid.' to '.$file,7);
+			msg($p.'wrote '.$pid.' to '.$file,9);
 		else
 			err($p.' fail to write '.$pid.' to '.$file);
 		fclose($f);

@@ -36,7 +36,7 @@
   */
 
 
-	define('REQUESTS_LOG_LEVEL',4);		//уровень логирования для отображения запросов
+	define('REQUESTS_LOG_LEVEL',4);			//уровень логирования для отображения запросов
 	define('RESPONCES_LOG_LEVEL',4);		//уровень логирования для отображения ответов
 	define('HANDLED_EVENTS_LOG_LEVEL',5);	//уровень логирования для отображения обрабатываемых событий
 	define('IGNORED_EVENTS_LOG_LEVEL',6);	//уровень логирования для отображения обрабатываемых но отброшенных событий
@@ -125,7 +125,13 @@
      * @var integer
      */
     private $actions_count = 0;
-
+    
+    /**
+     * Actions requested
+     * @var integer
+     */
+    private $events_count = 0;
+    
    /**
     * Server we are connected to
     *
@@ -199,7 +205,14 @@
      * @return strin current status
      */
     function getStatus(){
-    	return 'evt:'.count($this->events_queue).',rsp:'.count($this->responses_heap);
+    	$cnt=count($this->events_queue);
+    	if ($cnt=count($this->events_queue)) {
+    		if ($cnt>1)
+    			$cap='(caps:'.$this->events_queue[count($this->events_queue)-1]['uid'].','.$this->events_queue[count($this->events_queue)-2]['uid'].')';
+    		else
+    			$cap='(cap:'.$this->events_queue[count($this->events_queue)-1]['uid'].')';
+    	} else $cap='';
+    	return 'evt:'.count($this->events_queue).$cap.',rsp:'.count($this->responses_heap);
     }
 
     /**
@@ -340,8 +353,11 @@
 		// кладем сообщения в кучи
 		switch($type) {
 			case 'event':
-				$this->log("Event: ".dumpEvent($parameters,true),EVENTS_LOG_LEVEL);
-				$this->events_queue[count($this->events_queue)]=$parameters;
+				$pos=count($this->events_queue);
+				$parameters['uid']=$this->events_count++;
+				if ($this->events_count>=10000) $this->events_count=0;
+				$this->log("Event queued (".$parameters['uid']."): ".dumpEvent($parameters,true),EVENTS_LOG_LEVEL);
+				$this->events_queue[$pos]=$parameters;
 				break;
 			
 			case 'response':
@@ -366,9 +382,9 @@
 	 * @return array parameters
 	 */
 	function fetch_event(){
-		if (!isset($this->events_queue[0])) return NULL;
+		if (!count($this->events_queue)) return NULL;
 		$parameters=$this->events_queue[0];
-		for ($i=0;$i<count($this->events_queue)-2;$i++)
+		for ($i=0;$i<count($this->events_queue)-1;$i++)
 			$this->events_queue[$i]=$this->events_queue[$i+1];
 		unset($this->events_queue[count($this->events_queue)-1]);
 		$this->log($parameters['Event'].' fetched from queue',IGNORED_EVENTS_LOG_LEVEL);
