@@ -1,3 +1,4 @@
+#!/usr/bin/php -q
 <?php
 define('TIME_TO_FREEZE',120);
 define('TIME_TO_KILL',40);
@@ -85,7 +86,8 @@ function svcsStart($services)
 	}
 }
 
-if ($verb=get_argv('verbose')) msg('Verbose mode');
+initLog();
+if ($globVerbose) msg('Verbose mode');
 
 if (!count($services_list)) Halt('No services defined in priv.conf.php');
 
