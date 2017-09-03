@@ -69,13 +69,22 @@
 	}
 
 	/*
-	тулкит для работы с ПИДами
-	*/
+	 * тулкит для работы с PIDами
+	 */
+	/*
+	 * Формирует имя файла основываясь на некотором базовом имени
+	 */
 	function pidGetFname($base)		//файл для хранения пида
-	{	global $piddir; return $piddir.DIRECTORY_SEPARATOR.'spoo.'.$base.'.pid';}
+	{	
+		global $piddir; 
+		return $piddir.DIRECTORY_SEPARATOR.'spoo.'.$base.'.pid';
+	}
 
+	/* 
+	 * записать пид в файл
+	 */
 	function pidWrite($file)
-	{/*	записать пид в файл*/
+	{
 		$p='pidWrite: ';
 		if (!strlen($file)) {
 			err($p.'no filename given');
@@ -91,8 +100,11 @@
 		return $res;
 	}
 
+	/*
+	 * возраст файла PID
+	 */
 	function pidGetAge($file)
-	{/*	возраст файла пида*/
+	{
 		$p='pidGetAge: ';
 		if (!strlen($file)) {
 			err($p.'no filename given');
@@ -111,7 +123,6 @@
 
 	function pidWriteSvc($svc)			//записать мой пид
 	{	return pidWrite(pidGetFname($svc));}
-
 
 	function pidGetFnameMy()		//имя моего пидфайла
 	{	return pidGetFname(basename(__FILE__));}

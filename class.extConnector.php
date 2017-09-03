@@ -31,6 +31,7 @@
 		private $user;
 		private $password;
 		private $oci;
+		private $lastMsgTime=null;
 
 		public function __construct($conParams=null) {
 			if (
