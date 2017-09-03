@@ -26,9 +26,9 @@ function svcKill($svc)
 {
 	$p="svcKill($svc): ";
 	$killingtime=time();
-	while(getCurrentProcs($svc)&&((time()-$killingtime)<TIME_TO_KILL)) {
+	while(($current = getCurrentProcs($svc))&&((time()-$killingtime)<TIME_TO_KILL)) {
 		$exec='killall '.$svc;
-		msg($p.'running '.$exec);
+		msg("$p($current) running $exec");
 		exec($exec);
 		sleep(2);
 	}
@@ -42,7 +42,7 @@ function svcStart($svc,$params)
 {
 	$p="svcStart($svc): ";
 	$starttime=time();
-	$exec=dirname(__FILE__) . DIRECTORY_SEPARATOR . $svc. ' '.$params.'>> /dev/null 2>&1 &';
+	$exec=dirname(__FILE__) . DIRECTORY_SEPARATOR . $svc. ' ' . $params . ' >> /dev/null 2>&1 &';
 	msg($p.'running '.$exec);
 	exec($exec);
 	while(!getCurrentProcs($svc)&&((time()-$starttime)<TIME_TO_START))	sleep(1);
