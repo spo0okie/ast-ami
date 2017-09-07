@@ -139,6 +139,7 @@
 	 * проверка наличия процесса с указанным PID
 	 */
 	function pidCheck($PID){
+		if ($PID<1) return false;
 		$output='';
 		$return=-1;
 		exec("kill -0 $PID",$ouput,$return);

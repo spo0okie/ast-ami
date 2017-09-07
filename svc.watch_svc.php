@@ -42,7 +42,10 @@ function svcKill($svc)
 		exec($exec,$output);
 		sleep(2);
 	}
-	return pidCheck($pid);
+	$result=pidCheck($pid);
+	if ($result) err('Can\'t kill '.$svc.'!');
+	else msg($svc.' stopped sucessfully');
+	return !$result;
 }
 
 /*
@@ -55,9 +58,12 @@ function svcStart($svc,$params)
 	$exec=dirname(__FILE__) . DIRECTORY_SEPARATOR . $svc. ' ' . $params . ' >> /dev/null 2>&1 &';
 	msg($p.'running '.$exec);
 	exec($exec);
-	while(!getCurrentProcs($svc)&&((time()-$starttime)<TIME_TO_START))	sleep(1);
-	return (time()-$starttime)<TIME_TO_START;
-}
+	while(!pidCheckSvc($svc)&&((time()-$starttime)<TIME_TO_START))	sleep(1);
+	$result=pidCheckSvc($svc);
+	if (!$result) err('Can\'t start '.$svc.'!');
+	else msg($svc.' started sucessfully');
+	return $result;
+	}
 
 function svcCheckOnline($svc,$params)
 {
@@ -65,15 +71,22 @@ function svcCheckOnline($svc,$params)
 		if (!$procs) 					msg('service '.$svc.' not running!');
 		elseif ($age===false)	 		msg('service '.$svc.' got no PID file!');
 		elseif ($age>TIME_TO_FREEZE) 	msg('service '.$svc.' looks like stuck for '.$age.' seconds!');
-		if (!svcKill($svc)){
-			//some panic here
-			err('Can\'t kill '.$svc.'!');
-		} 
-		if (!svcStart($svc,$params)){
-			//some other panic here
-			err('Can\'t start '.$svc.'!');
-		} else msg($svc.' restarted sucessfully');
+		svcKill($svc);
+		svcStart($svc,$params);
 	}
+}
+
+function svcProcInfo($svc){
+	$msg="Service $svc";
+	$pid=pidReadSvc($svc);
+	if ($pid) {
+		$msg.="($pid): ";
+		$run=pidCheck($pid);
+		if ($run) {
+			$msg.='running.last heartbeat was '.pidGetAgeSvc($svc).' seconds ago';
+		} else $msg.='stopped';
+	} else $msg.=': stopped (no pid found)';
+	return $msg;
 }
 
 
@@ -83,7 +96,7 @@ function svcsKill($services)
 
 	foreach ($services as $svc=>$param) {
 		svcKill($svc);
-		msg($svc.'	: '.($t=pidCheckSvc($svc)).' process; '.(!$t?'kill OK':'kill ERR'));
+		msg(svcProcInfo($svc));
 	}
 }
 
@@ -93,8 +106,7 @@ function svcsStart($services)
 
 	foreach ($services as $svc=>$param) {
 		svcCheckOnline($svc,$param);
-		$pid=pidReadSvc($svc);
-		msg($svc.'	: '.$pid.' process;	last heartbeat was '.pidGetAgeSvc($svc).' seconds ago');
+		msg(svcProcInfo($svc));
 	}
 }
 
