@@ -25,14 +25,17 @@ $logdir=$piddir=$tmp;	//куда будем писать логи и хартб�
 function svcKill($svc)
 {
 	$p="svcKill($svc): ";
-	$killingtime=time();
 	$pid=pidReadSvc($svc);
+	
+	$killingtime=time();
 	while((pidCheck($pid))&&((time()-$killingtime)<TIME_TO_KILL/2)) {
 		$exec='kill '.$pid;
 		msg("$p waiting $pid ...");
 		exec($exec);
 		sleep(2);
 	}
+	
+	$killingtime=time();
 	while((pidCheck($pid))&&((time()-$killingtime)<TIME_TO_KILL/2)) {
 		$exec='kill -9 '.$pid;
 		msg("$p waiting $pid ...");
