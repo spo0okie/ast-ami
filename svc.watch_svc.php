@@ -26,12 +26,12 @@ function svcKill($svc)
 {
 	$p="svcKill($svc): ";
 	$pid=pidReadSvc($svc);
-	
+	$output='';
 	$killingtime=time();
 	while((pidCheck($pid))&&((time()-$killingtime)<TIME_TO_KILL/2)) {
 		$exec='kill '.$pid;
 		msg("$p waiting $pid ...");
-		exec($exec);
+		exec($exec,$output);
 		sleep(2);
 	}
 	
@@ -39,7 +39,7 @@ function svcKill($svc)
 	while((pidCheck($pid))&&((time()-$killingtime)<TIME_TO_KILL/2)) {
 		$exec='kill -9 '.$pid;
 		msg("$p waiting $pid ...");
-		exec($exec);
+		exec($exec,$output);
 		sleep(2);
 	}
 	return pidCheck($pid);
@@ -61,14 +61,15 @@ function svcStart($svc,$params)
 
 function svcCheckOnline($svc,$params)
 {
-	if (!($procs=getCurrentProcs($svc))||($age=pidGetAgeSvc($svc))===false||($age>TIME_TO_FREEZE)) {
+	if (!($procs=pidCheckSvc($svc))||($age=pidGetAgeSvc($svc))===false||($age>TIME_TO_FREEZE)) {
 		if (!$procs) 					msg('service '.$svc.' not running!');
 		elseif ($age===false)	 		msg('service '.$svc.' got no PID file!');
 		elseif ($age>TIME_TO_FREEZE) 	msg('service '.$svc.' looks like stuck for '.$age.' seconds!');
 		if (!svcKill($svc)){
 			//some panic here
 			err('Can\'t kill '.$svc.'!');
-		} else if (!svcStart($svc,$params)){
+		} 
+		if (!svcStart($svc,$params)){
 			//some other panic here
 			err('Can\'t start '.$svc.'!');
 		} else msg($svc.' restarted sucessfully');
