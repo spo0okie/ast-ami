@@ -37,7 +37,7 @@ function svcKill($svc)
 	
 	$killingtime=time();
 	while((pidCheck($pid))&&((time()-$killingtime)<TIME_TO_KILL/2)) {
-		$exec='kill -9 '.$pid.'> /dev/null &2>1';
+		$exec='kill -9 '.$pid.'> /dev/null 2>&1';
 		msg("$p waiting $pid ...");
 		exec($exec,$output);
 		sleep(2);
