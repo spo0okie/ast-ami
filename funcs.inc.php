@@ -79,7 +79,10 @@
 		global $piddir; 
 		return $piddir.DIRECTORY_SEPARATOR.'spoo.'.$base.'.pid';
 	}
-
+	
+	function pidGetFnameMy()			//имя моего пидфайла
+	{	return pidGetFname(basename(__FILE__));}
+	
 	/* 
 	 * записать пид в файл
 	 */
@@ -101,6 +104,20 @@
 	}
 
 	/*
+	 * записать пид в файл
+	 */
+	function pidRead($file)
+	{
+		$p='pidRead: ';
+		if (!strlen($file)) {
+			err($p.'no filename given');
+			return false;
+		}
+		$pid=file_get_contents($file);
+		return $pid;
+	}
+	
+	/*
 	 * возраст файла PID
 	 */
 	function pidGetAge($file)
@@ -118,23 +135,38 @@
 		return time()-$ftime;
 	}
 
-	function pidGetAgeSvc($svc)		//вернуть возраст пид файла сервиса
+	/*
+	 * проверка наличия процесса с указанным PID
+	 */
+	function pidCheck($PID){
+		$output='';
+		$return=-1;
+		exec("kill -0 $PID",$ouput,$return);
+		return ($return===0);
+	}
+	
+	function pidGetAgeSvc($svc)			//вернуть возраст пид файла сервиса
 	{	return pidGetAge(pidGetFname($svc));}
 
 	function pidWriteSvc($svc)			//записать мой пид
 	{	return pidWrite(pidGetFname($svc));}
-
-	function pidGetFnameMy()		//имя моего пидфайла
-	{	return pidGetFname(basename(__FILE__));}
-
-	function pidGetAgeMy()			//возраст моего пидфайла
+	
+	function pidReadSvc($svc)			//прочитать pid процесса сервиса
+	{	return pidRead(pidGetFname($svc));}
+	
+	function pidCheckSvc($svc)			//проверить жив ли процесс сервиса
+	{	return pidCheck(pidReadSvc($svc));}
+	
+	function pidGetAgeMy()				//возраст моего пидфайла
 	{	return pidGetAge(pidGetFnameMy());}
 
-	function pidWriteMy()			//записать мой пид
+	function pidWriteMy()				//записать мой пид
 	{	global $dummyMode;
 		//if (!$dummyMode)
 		pidWrite(pidGetFnameMy());
 	}
+	
+	
 
 
 	function get_argv($name) {global $argv; for ($i=1;$i<count($argv);$i++) if ($name==argvName($argv[$i])) return argvVal($argv[$i]); return false;}

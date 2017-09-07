@@ -26,13 +26,20 @@ function svcKill($svc)
 {
 	$p="svcKill($svc): ";
 	$killingtime=time();
-	while(($current = getCurrentProcs($svc))&&((time()-$killingtime)<TIME_TO_KILL)) {
-		$exec='killall '.$svc;
-		msg("$p($current) running $exec");
+	$pid=pidReadSvc($svc);
+	while((pidCheck($pid))&&((time()-$killingtime)<TIME_TO_KILL/2)) {
+		$exec='kill '.$pid;
+		msg("$p waiting $pid ...");
 		exec($exec);
 		sleep(2);
 	}
-	return (time()-$killingtime)<TIME_TO_KILL;
+	while((pidCheck($pid))&&((time()-$killingtime)<TIME_TO_KILL/2)) {
+		$exec='kill -9 '.$pid;
+		msg("$p waiting $pid ...");
+		exec($exec);
+		sleep(2);
+	}
+	return pidCheck($pid);
 }
 
 /*
