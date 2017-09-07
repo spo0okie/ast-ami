@@ -83,7 +83,7 @@ function svcsKill($services)
 
 	foreach ($services as $svc=>$param) {
 		svcKill($svc);
-		msg($svc.'	: '.($t=getCurrentProcs($svc)).' processes; '.(!$t?'kill OK':'kill ERR'));
+		msg($svc.'	: '.($t=pidCheckSvc($svc)).' process; '.(!$t?'kill OK':'kill ERR'));
 	}
 }
 
@@ -93,7 +93,8 @@ function svcsStart($services)
 
 	foreach ($services as $svc=>$param) {
 		svcCheckOnline($svc,$param);
-		msg($svc.'	: '.getCurrentProcs($svc).' processes;	last heartbeat was '.pidGetAgeSvc($svc).' seconds ago');
+		$pid=pidReadSvc($svc);
+		msg($svc.'	: '.$pid.' process;	last heartbeat was '.pidGetAgeSvc($svc).' seconds ago');
 	}
 }
 
