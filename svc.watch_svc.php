@@ -29,16 +29,16 @@ function svcKill($svc)
 	$output='';
 	$killingtime=time();
 	while((pidCheck($pid))&&((time()-$killingtime)<TIME_TO_KILL/2)) {
-		$exec='kill '.$pid.'> /dev/null 2>&1';
-		msg("$p waiting $pid ...");
+		$exec='kill '.$pid.'> /dev/null';
+		msg("$p waiting for $pid ...");
 		exec($exec,$output);
 		sleep(2);
 	}
 	
 	$killingtime=time();
 	while((pidCheck($pid))&&((time()-$killingtime)<TIME_TO_KILL/2)) {
-		$exec='kill -9 '.$pid.'> /dev/null 2>&1';
-		msg("$p waiting $pid ...");
+		$exec='kill -9 '.$pid.'> /dev/null';
+		msg("$p waiting for $pid ...");
 		exec($exec,$output);
 		sleep(2);
 	}
