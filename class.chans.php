@@ -115,7 +115,9 @@ class CAmiEventItem {
 	 //то такой вызов классифицируется как входящий. Поэтому все вызовы через call файлы
 	 //помещаются в специальный контекст, который проверяется в этой функции 
 	 // - не вышло с контекстом, пробуем через caller ID
-		return ($this->getPar('CallerIDName')===(API_CALLOUT_PREFIX.$this->getPar('ConnectedLineNum')));
+		return ($this->getPar('CallerIDName')===(API_CALLOUT_PREFIX.$this->getPar('ConnectedLineNum')))
+		||($this->getPar('CallerIDName')===(API_CALLOUT_PREFIX.$this->getPar('CallerIDNum')))
+		||($this->getPar('ConnectedLineName')===(API_CALLOUT_PREFIX.$this->getPar('ConnectedLineNum')));
 	}
 
 	public function getState()
