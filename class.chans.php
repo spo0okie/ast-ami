@@ -41,7 +41,9 @@ function chanGetSrc($name)	{
  *
  */
 class CAmiEventItem {
-	
+
+	private static $debug_evts=['Newexten'];
+
 	/*
 	 * массив параметр=>значение из которого и состоит евент
 	 */
@@ -50,7 +52,14 @@ class CAmiEventItem {
 	/*
 	 * @param array $par массив элементов полученный от AMI
 	 */
-	public function __construct($par) {$this->par=$par;}
+	public function __construct($par) {
+		$this->par=$par;
+		$this->par['logLevel']=INFO_EVENTS_LOG_LEVEL;
+		if (isset($this->par['Event']))
+			foreach (static::$debug_evts as $debug_evt)
+				if (strcmp($debug_evt,$this->par['Event'])==0)
+					$this->par['logLevel']=HANDLED_EVENTS_LOG_LEVEL;
+	}
 
 	/*
 	 * Возвращает текстовый дамп содержимого евента
@@ -60,7 +69,15 @@ class CAmiEventItem {
 		foreach ($this->par as $key => $value)	$data.="$key => $value\n";
 		return $data;
 	}
-	
+
+	/**
+	 * Возвращает уровень логирования этого сообщения DEBUG|INFO
+	 */
+	public function logLevel() {
+		if (isset($this->par['logLevel'])) return $this->par['logLevel'];
+		return INFO_EVENTS_LOG_LEVEL;
+	}
+
 	/*
 	 * Возвращает наличие элемента $item в эвенте
 	 * @param string $item имя параметра
@@ -136,6 +153,7 @@ class CAmiEventItem {
 			//'Dialing Offhook'=>NULL,	//Digits (or equivalent) have been dialed while offhook
 			//'Pre-ring'=>NULL,			//The channel technology has detected an incoming call and is waiting for a ringing indication
 			//'Unknown'=>NULL			//The channel is an unknown state 
+			'Hangup'=>'Hangup',			//Окончание разговора
 		);
 		
 		if 	(isset($this->par['ChannelStateDesc'])&&strlen($state=$this->par['ChannelStateDesc'])) //если статус в ивенте указан
@@ -154,7 +172,7 @@ class CAmiChannel {
 	 * AMI object
 	 */
 	private $ami;
-	
+
 	/*
 	 * Данные о канале
 	 */
@@ -167,6 +185,7 @@ class CAmiChannel {
 	private $src;		//источник (caller)
 	private $dst;		//вызываемый (callee)
 	private $reversed;	//в канале src и dst обратны относительно исходного звонка?
+	private $wasRinging;//признак того, что канал был ранее в состоянии Ringing, что подразумевает не прямое, а обратное направление вызовае
 	private $monitor;	//имя файла в который пишется запись
 
 	private $variables;	//канальные переменные
@@ -268,6 +287,7 @@ class CAmiChannel {
 		$this->src=null;
 		$this->dst=null;
 		$this->monitor=null;
+		$this->wasRinging=false;
 		$this->variables=[];
 		
 		$this->uid=$evt->getPar('Uniqueid');
@@ -284,9 +304,10 @@ class CAmiChannel {
 				case 'Ring':    $st='>'; break;
 				case 'Ringing': $st='<'; break;
 				case 'Up':      $st='^' ; break;
+				case 'Hangup':  $st='x' ; break;
 				default:        $st='?'; break;
 		}
-		$rev=$this->reversed?'Y':'N';
+		$rev=$this->needReverse()?'Y':'N';
 		$mon=strlen($this->monitor)?'Y':'N';
 		$var=count($this->variables);
 		return  (is_null($this->src)?'[]':$this->src).
@@ -333,12 +354,15 @@ class CAmiChannel {
 		$tokens=explode('/',$parts[count($parts)-1]);
 		return $tokens[count($tokens)-1];
 	}
-	
-	
+
+	/**
+	 * @param CAmiEventItem $evt
+	 * @return bool
+	 */
 	public function upd(&$evt)
 	{//обновляем информацию о канале новыми данными
 		//echo "Got chan: $cname";
-		msg($this->p().'parsing event: '.$evt->dump(),HANDLED_EVENTS_LOG_LEVEL);
+		msg($this->p().'parsing event: '.$evt->dump(),$evt->logLevel());
 
 		$oldstate=$this->state;			//запоминаем старый статус
 			
@@ -369,7 +393,8 @@ class CAmiChannel {
 	 */
 	private function needReverse()
 	{
-		return ($this->state==='Ringing') xor ($this->reversed===true);
+		if ($this->state==='Ringing') $this->wasRinging=true;
+		return ($this->wasRinging===true) xor ($this->reversed===true);
 	}
 	
 	public function getState(){
@@ -481,7 +506,7 @@ class chanList {
 		{
 			if($evt->exists('Newname')) {//в нем есть новый канал?
 				$newchan=$evt->getPar('Newname');//создаем объект канала из нового канала
-				if (isset($this->list[$chan]))
+				if (isset($this->list[$cname]))
 					$this->list[$newchan]=$this->list[$cname]; //то создаем канал с новым именем из старого
 			}
 			unset ($this->list[$cname]);

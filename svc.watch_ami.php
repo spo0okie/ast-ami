@@ -51,7 +51,11 @@ $usage="Correct usage is:\n"
 	."ocisrv:127.0.0.1     - Oracle server address\n"
 	."ociinst:orcl         - Oracle server instance\n"
 	."ociuser:oruser       - Oracle server user\n"
-	."ocipass:password1    - Oracle server password\n";
+	."ocipass:password1    - Oracle server password\n"
+
+	."- to translate to Web API use:"
+	."weburl:serv/ctl/     - Web API server address\n"
+;
 	
 if (!strlen($srvaddr=get_param('srvaddr'))) criterr($usage);
 if (!strlen($srvport=get_param('srvport'))) criterr($usage);
@@ -60,8 +64,9 @@ if (!strlen($srvpass=get_param('srvpass'))) criterr($usage);
 
 
 $globConnParams=array();
+$db_used=false;
 
-//Используем ли мы вебсокеты?
+//Используем ли мы вывод в консоль?
 if (strlen($conout=get_param('conout'))) {
 	//если указан сервер вебсокетов, то используем. Тогда еще нужны учетные данные
 	$globConnParams[]=array('conout'=>$conout);
@@ -70,6 +75,7 @@ if (strlen($conout=get_param('conout'))) {
 //Используем ли мы вебсокеты?
 if (strlen($wsaddr=get_param('wsaddr'))) {
 	//если указан сервер вебсокетов, то используем. Тогда еще нужны учетные данные
+	$db_used=true;
 	if (!strlen($wsport =get_param('wsport')))  criterr($usage);
 	if (!strlen($wschan =get_param('wschan')))  criterr($usage);	
 	//библиотека работы с WebSocket
@@ -78,8 +84,10 @@ if (strlen($wsaddr=get_param('wsaddr'))) {
 	$globConnParams[]=array('wsaddr'=>$wsaddr,'wsport'=>$wsport,'wschan'=>$wschan);
 }
 
+//используем ли мы oracle?
 if (strlen($ocisrv=get_param('ocisrv'))) {
 	//если указан сервер вебсокетов, то используем. Тогда еще нужны учетные данные
+	$db_used=true;
 	if (!strlen($ociinst =get_param('ociinst')))  criterr($usage);
 	if (!strlen($ociuser =get_param('ociuser')))  criterr($usage);	
 	if (!strlen($ocipass =get_param('ocipass')))  criterr($usage);	
@@ -89,7 +97,17 @@ if (strlen($ocisrv=get_param('ocisrv'))) {
 	$globConnParams[]=array('ocisrv'=>$ocisrv,'ociinst'=>$ociinst,'ociuser'=>$ociuser,'ocipass'=>$ocipass);
 }
 
+//Используем ли мы вебсокеты?
+if (strlen($weburl=get_param('weburl'))) {
+	$db_used=true;
+	$globConnParams[]=array('weburl'=>$weburl);
+}
 
+
+//
+$orgphone=get_param('orgphone');
+
+if (getCurrentProcs(basename(__FILE__).' '.get_agrv_str())>1 && $db_used) criterr('Runing second (and more) process with DB acces is forbidden.');
 
 function AMI_defaultevent_handler($evt, $par, $server=NULL, $port=NULL)
 {//обработчик всех прочих событий от астериска

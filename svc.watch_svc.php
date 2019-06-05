@@ -17,7 +17,31 @@ if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
 
 $logdir=$piddir=$tmp;	//куда будем писать логи и хартбиты сервисов
 
-	
+
+
+/*
+ * Убивает процесс по PID
+ */
+function pidKill($pid){
+	$p="pidKill($pid): ";
+	$output='';
+	$killingtime=time();
+
+	while((pidCheck($pid))&&((time()-$killingtime)<TIME_TO_KILL/4)) {
+		$exec='kill '.$pid.' > /dev/null';
+		msg("$p waiting for $pid ...");
+		exec($exec,$output,$result);
+		sleep(2);
+	}
+
+	while((pidCheck($pid))&&((time()-$killingtime)<TIME_TO_KILL)) {
+		$exec='kill -9 '.$pid.' > /dev/null';
+		msg("$p waiting for $pid ...");
+		exec($exec,$output,$result);
+		sleep(2);
+	}
+	return pidCheck($pid);
+}
 
 /*
  * прибивает конкретный сервис (тупо по имени файла)
@@ -26,24 +50,7 @@ function svcKill($svc)
 {
 	$p="svcKill($svc): ";
 	$pid=pidReadSvc($svc);
-	$output='';
-	$result=0;
-	$killingtime=time();
-	while((pidCheck($pid))&&((time()-$killingtime)<TIME_TO_KILL/2)) {
-		$exec='kill '.$pid.' > /dev/null';
-		msg("$p waiting for $pid ...");
-		exec($exec,$output,$result);
-		sleep(2);
-	}
-	
-	$killingtime=time();
-	while((pidCheck($pid))&&((time()-$killingtime)<TIME_TO_KILL/2)) {
-		$exec='kill -9 '.$pid.' > /dev/null';
-		msg("$p waiting for $pid ...");
-		exec($exec,$output,$result);
-		sleep(2);
-	}
-	$result=pidCheck($pid);
+	$result=pidKill($pid);
 	if ($result) err('Can\'t kill '.$svc.'!');
 	else msg($svc.' stopped sucessfully');
 	return !$result;
@@ -111,6 +118,21 @@ function svcsStart($services)
 	}
 }
 
+function svcsKeepOne($services)
+{
+	global $verb;
+
+	foreach ($services as $svc=>$param) {
+	    $procs=getCurrentProcsList(dirname(__FILE__) . DIRECTORY_SEPARATOR . $svc. ' ' . $param);
+	    //msg($procs);
+		if (count($procs)>1) {
+			err('Oh my! More than one process running! KILL THEM ALL!!!');
+			foreach ($procs as $proc) pidKill($proc);
+			//exec('killall -9 "'.dirname(__FILE__) . DIRECTORY_SEPARATOR . $svc. ' ' . $param.'"');
+		}
+	}
+}
+
 initLog();
 if ($globVerbose) msg('Verbose mode');
 
@@ -118,6 +140,10 @@ if (!count($services_list)) Halt('No services defined in priv.conf.php');
 
 $mode=strtolower(isset($argv[1])?$argv[1]:'start');
 switch ($mode) {
+	case 'keepone':
+		svcsKeepOne($services_list);
+		svcsStart($services_list);
+		break;
 	case 'stop':
 		svcsKill($services_list);
 		break;

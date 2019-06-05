@@ -21,7 +21,7 @@ class astConnector {
 	{//возвращает переменную из канала
 		$response=$this->astman->GetVar($channel, $variable);
 		//msg($this->p.'Got getvar responce:'.$response);
-		return $response['Value'];
+		return isset($response['Value'])?$response['Value']:null;
 	}
 	
 	public function set_chan_var($channel, $variable, $value)
@@ -66,6 +66,10 @@ class astConnector {
 	public function evt_hangup($evt,$par)
 	{//обработчик события о смерти канала
 		global $chans;
+		//(обновление статуса для передачи в БД самым дешевым способом)
+		$par['ChannelStateDesc']='Hangup'; //подсовываем обновление канала фейковым статусом окончания разговора
+		//обновляем канал
+		$this->chans->upd($par);
 		$this->chans->ren($par);
 		if (function_exists($this->defaultEvtHandler)) {
 			$handler=$this->defaultEvtHandler;

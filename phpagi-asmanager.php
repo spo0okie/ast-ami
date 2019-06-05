@@ -36,11 +36,12 @@
   */
 
 
-	define('REQUESTS_LOG_LEVEL',4);			//уровень логирования для отображения запросов
-	define('RESPONCES_LOG_LEVEL',4);		//уровень логирования для отображения ответов
-	define('HANDLED_EVENTS_LOG_LEVEL',5);	//уровень логирования для отображения обрабатываемых событий
-	define('IGNORED_EVENTS_LOG_LEVEL',6);	//уровень логирования для отображения обрабатываемых но отброшенных событий
-	define('EVENTS_LOG_LEVEL',7);			//уровень логирования всех событий
+	define('REQUESTS_LOG_LEVEL',6);			//уровень логирования для отображения запросов
+	define('RESPONCES_LOG_LEVEL',6);		//уровень логирования для отображения ответов
+	define('INFO_EVENTS_LOG_LEVEL',5);	    //уровень логирования для отображения полезных обрабатываемых событий
+	define('HANDLED_EVENTS_LOG_LEVEL',6);	//уровень логирования для отображения обрабатываемых событий
+	define('IGNORED_EVENTS_LOG_LEVEL',7);	//уровень логирования для отображения обрабатываемых но отброшенных событий
+	define('EVENTS_LOG_LEVEL',8);			//уровень логирования всех событий
 	
 	function getParName($buffer){
 		$a = strpos($buffer, ':');

@@ -145,6 +145,7 @@
 		exec("kill -0 $PID",$ouput,$return);
 		return ($return===0);
 	}
+
 	
 	function pidGetAgeSvc($svc)			//вернуть возраст пид файла сервиса
 	{	return pidGetAge(pidGetFname($svc));}
@@ -180,6 +181,7 @@
 		return get_argv($var);
 	}
 
+	function get_agrv_str() {global $argv; $args=$argv; unset($args[0]); return implode(' ',$args);}
 
 	function Halt($text) {die('HALT: '.$text."\n");}
 	//returning date in readable form
@@ -229,15 +231,25 @@
 	function getCurrentProcs($procname)
 	{/* возвращает текущее количество процессов $procname */
 		$p="getCurrentProcs($procname): ";
-		$cmd='ps ax|grep '.$procname.'|grep -v grep|wc -l';
+		$cmd='ps ax|grep "'.$procname.'"|grep -v grep|wc -l';
 		msg($p.'running '.$cmd,5);
 		$res=(int)exec($cmd,$out);
 		msg($p.'result: '.$res,5);
-		foreach ($out as $line) msg($p.'output: '.$res,5);
+		foreach ($out as $line) msg($p.'output: '.$line,5);
 		return $res;
 	}
 
-	function send_get_req($url)
+	function getCurrentProcsList($procname)
+	{/* возвращает текущее количество процессов $procname */
+		$p="getCurrentProcs($procname): ";
+		$cmd='ps ax|grep "'.$procname.'"|grep -v grep|cut -d" " -f2';
+		msg($p.'running '.$cmd,5);
+		exec($cmd,$out);
+		foreach ($out as $line) msg($p.'output: '.$line,5);
+		return $out;
+	}
+
+function send_get_req($url)
 	{
 		return file_get_contents($url);
 	}
