@@ -1034,32 +1034,37 @@
     */
     function process_event($parameters)
     {
-    	
-    	// для логирования используется IGNORED_EVENTS_LOG_LEVEL, поскольку неясно отфильтруются они далее или нет
-      $ret = false;
-      $e = strtolower($parameters['Event']);
-      //$this->log("Got event.. $e");		
+		// для логирования используется IGNORED_EVENTS_LOG_LEVEL, поскольку неясно отфильтруются они далее или нет
+		$ret = false;
+		$e = strtolower($parameters['Event']);
+		//$this->log("Got event.. $e");		
 
-      $handler = '';
-      if(isset($this->event_handlers[$e])) $handler = $this->event_handlers[$e];
-      elseif(isset($this->event_handlers['*'])) $handler = $this->event_handlers['*'];
+		$handler = '';
+		if(isset($this->event_handlers[$e])) $handler = $this->event_handlers[$e];
+		elseif(isset($this->event_handlers['*'])) $handler = $this->event_handlers['*'];
 
-	  
-      if(is_array($handler)&&method_exists($handler[0],$handler[1]))
-      {
-		$this->log("processing $e => ".get_class($handler[0])."::$handler[1]",IGNORED_EVENTS_LOG_LEVEL);
-		$ret=$handler[0]->$handler[1]($e, $parameters, $this->server, $this->port);
-	  }
-      elseif(function_exists($handler))
-      {
-      	 $this->log("processing $e => $handler",IGNORED_EVENTS_LOG_LEVEL);
-      	 $ret = $handler($e, $parameters, $this->server, $this->port);
-      } elseif(function_exists('AMI_defaultevent_handler')) {
-        $ret = AMI_defaultevent_handler($e, $parameters, $this->server, $this->port);
-      }
-      else
-		$this->log("No event handler for event '$e'",REQUESTS_LOG_LEVEL);
-      return $ret;
-    }
-  }
+		if(is_array($handler)&&method_exists($handler[0],$handler[1]))
+		{
+			$this->log("processing $e => ".get_class($handler[0])."::$handler[1]",IGNORED_EVENTS_LOG_LEVEL);
+			$method=$handler[1];
+			$ret=$handler[0]->$method($e, $parameters, $this->server, $this->port);
+		}
+
+		elseif(function_exists($handler))
+		{
+			$this->log("processing $e => $handler",IGNORED_EVENTS_LOG_LEVEL);
+			$ret = $handler($e, $parameters, $this->server, $this->port);
+		}
+
+		elseif(function_exists('AMI_defaultevent_handler'))
+		{
+			$ret = AMI_defaultevent_handler($e, $parameters, $this->server, $this->port);
+		}
+
+		else
+			$this->log("No event handler for event '$e'",REQUESTS_LOG_LEVEL);
+
+		return $ret;
+	}
+}
 ?>
