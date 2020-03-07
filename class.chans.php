@@ -4,24 +4,39 @@
 //на контекст куда бросаются вызовы из call файлов называется org1_api_outcall
 define ('API_CALLOUT_PREFIX','Вызов ');
 
+/**
+ * Вытаскивает технологию канала из его имени
+ * @param $name string имя канала
+ * @return bool|null|string
+ */
 function chanGetTech($name) {
 	if (!strlen($name)) return NULL;	//пустая строка
-		$slash=strpos($name,'/'); 		//разбираем канал в соответствии с синтаксисом
+	$slash=strpos($name,'/'); 	//разбираем канал в соответствии с синтаксисом
 	if (!$slash) return NULL;			//несоотв синтаксиса
 	return substr($name,0,$slash);
 }
 
+/**
+ * Проверяет наличие технологии у канала отличной от "Логический канал"
+ * @param $name string имя канала
+ * @return bool
+ */
 function chanCkTech($name) {
 	$tech = chanGetTech($name);
-//	echo $tech."\n";
+	//echo $tech."\n"; //debug
 	return NULL!==$tech&&$tech!=='Local';//возвращаем что технология у канала есть и она не Local (что означает, что канал виртуальный)
 }
 
+/**
+ * Вытаскивает источник вызова (А-номер) из имени канала
+ * @param $name
+ * @return bool|null|string
+ */
 function chanGetSrc($name)	{
-		if (!strlen($name)) return NULL;		//пустая строка
-		$slash=strpos($name,'/'); 	//разбираем канал в соответствии с синтаксисом
+		if (!strlen($name)) return NULL;		    //пустая строка
+		$slash=strpos($name,'/'); 	        //разбираем канал в соответствии с синтаксисом
 		$dash=strrpos($name,'-'); 
-		$at=strpos($name,'@'); 		//ищем / - @ в строке
+		$at=strpos($name,'@'); 		        //ищем / - @ в строке
 		if (!$slash||!($at||$dash)) return NULL;	//несоотв синтаксиса
 		$numend=($at&&$dash)?min($at,$dash):max($at,$dash);	//конец номера
 		return substr($name,$slash+1,$numend-$slash-1); //ищем номер звонящего абонента в имени канала
@@ -38,7 +53,6 @@ function chanGetSrc($name)	{
     [Application] => Monitor
     [AppData] => wav,/home/record/yamal/_current/20170210-221016-+79193393655-IN-+79193393655
     [Uniqueid] => 1486746616.2615
- *
  */
 class CAmiEventItem {
 
