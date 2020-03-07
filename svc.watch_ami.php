@@ -97,12 +97,17 @@ if (strlen($ocisrv=get_param('ocisrv'))) {
 	$globConnParams[]=array('ocisrv'=>$ocisrv,'ociinst'=>$ociinst,'ociuser'=>$ociuser,'ocipass'=>$ocipass);
 }
 
-//Используем ли мы вебсокеты?
+//Используем ли мы WEB-API?
 if (strlen($weburl=get_param('weburl'))) {
 	$db_used=true;
 	$globConnParams[]=array('weburl'=>$weburl);
 }
 
+//Используем ли мы WEB-API?
+if (strlen($weburl2=get_param('weburl2'))) {
+	$db_used=true;
+	$globConnParams[]=array('weburl'=>$weburl2);
+}
 
 //
 $orgphone=get_param('orgphone');

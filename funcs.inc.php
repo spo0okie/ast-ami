@@ -62,9 +62,10 @@
 	*/
 	function argvName($par){if ($tokens=explode(':',$par)) return $tokens[0]; else return $par;}
 	function argvVal($par) {
-		if ($tokens=explode(':',$par))
-			if (count($tokens)>1)
-				return $tokens[1];
+		if ($tokens=explode(':',$par) and count($tokens)>1) {
+			unset($tokens[0]);
+			return implode(':',$tokens);
+		}
 		return true;
 	}
 
@@ -339,4 +340,3 @@ function send_get_req($url)
 	function array_uniquepush(&$arr, $val) { //кладет элемент если его еще нет в массиве
 		if (array_search($val,$arr,true)===false) $arr[]=$val;
 	}
-?>
