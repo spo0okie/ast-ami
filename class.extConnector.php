@@ -147,7 +147,7 @@ class webDataConnector extends abstractDataConnector  {
 	public function checkConnection() {
 		$req='http://'.$this->url.'/test';
 		$response=file_get_contents($req);
-		//msg($this->p.'Checking '.$req.', Got: '.$response.' ['.substr($response,0,3).']'.strcmp(substr($response,0,3),'OK:'),5);
+		msg($this->p.'Checking '.$req.', Got: '.$response,5);
 		if (!strlen($response)) {
 			msg($this->p.'Web API lost connection (empty response): '.$response);
 			return false;
