@@ -155,7 +155,7 @@
     * @access private
     * @var AGI
     */
-    private $pagi;
+    public $pagi;
 
    /**
     * Event Handlers

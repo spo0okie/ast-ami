@@ -1,6 +1,7 @@
 #!/usr/bin/php -q
 <?php
-/* Файл сбора сообщений из AMI и слива во внешние хранилища данных
+/**
+ * Файл сбора сообщений из AMI и слива во внешние хранилища данных
  * на текущий момент поддерживаются:
  * - вывод в консоль 
  * - запись в БД Oracle
@@ -9,11 +10,11 @@
 //прикладные функции работы с логом файлами и проч. 
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'funcs.inc.php');	
 //библиотека работы с астериском
-require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'phpagi.php');
+require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . '/astConnector/phpagi.php');
 //класс коннекторов к получателям данных
-require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.extConnector.php');	
+require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . '/dataConnectors/globDataConnector.php');
 //класс коннекторa к asterisk AMI
-require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.amiConnector.php');	
+require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . '/astConnector/astConnector.php');
 //класс управления списком каналов
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.chans.php');	
 
@@ -103,10 +104,10 @@ if (strlen($weburl=get_param('weburl'))) {
 	$globConnParams[]=array('weburl'=>$weburl);
 }
 
-//Используем ли мы WEB-API?
-if (strlen($weburl2=get_param('weburl2'))) {
+//Используем ли мы WEB-API для инф о каналах?
+if (strlen($weburl_chan=get_param('weburl_chan'))) {
 	$db_used=true;
-	$globConnParams[]=array('weburl'=>$weburl2);
+	$globConnParams[]=array('weburl_chan'=>$weburl_chan);
 }
 
 //

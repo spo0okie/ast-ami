@@ -33,13 +33,13 @@ function chanCkTech($name) {
  * @return bool|null|string
  */
 function chanGetSrc($name)	{
-		if (!strlen($name)) return NULL;		    //пустая строка
-		$slash=strpos($name,'/'); 	        //разбираем канал в соответствии с синтаксисом
-		$dash=strrpos($name,'-'); 
-		$at=strpos($name,'@'); 		        //ищем / - @ в строке
-		if (!$slash||!($at||$dash)) return NULL;	//несоотв синтаксиса
-		$numend=($at&&$dash)?min($at,$dash):max($at,$dash);	//конец номера
-		return substr($name,$slash+1,$numend-$slash-1); //ищем номер звонящего абонента в имени канала
+	if (!strlen($name)) return NULL;		    //пустая строка
+	$slash	=strpos($name,'/'); 	        //разбираем канал в соответствии с синтаксисом
+	$dash	=strrpos($name,'-');
+	$at		=strpos($name,'@'); 			//ищем / - @ в строке
+	if (!$slash||!($at||$dash)) return NULL;	//несоотв синтаксиса
+	$numend=($at&&$dash)?min($at,$dash):max($at,$dash);	//конец номера
+	return substr($name,$slash+1,$numend-$slash-1); //ищем номер звонящего абонента в имени канала
 }
 
 /*
@@ -92,24 +92,25 @@ class CAmiEventItem {
 		return INFO_EVENTS_LOG_LEVEL;
 	}
 
-	/*
+	/**
 	 * Возвращает наличие элемента $item в эвенте
 	 * @param string $item имя параметра
 	 * @return bool признак наличия элемента в эвенте
 	 */
 	public function exists($item) {return isset($this->par[$item])&&strlen($this->par[$item]);}
 
-	/*
+	/**
 	 * возвращает true, если итем есть и числовой
 	 * @param string $item имя параметра
 	 * @return bool признак наличия числового элемента в эвенте
 	 */
 	public function numeric($item) {return $this->exists($item)&&is_numeric($this->par[$item]);}
 
-	/*
+	/**
 	 * получить значение элемента или "по умолчанию", если элемента нет
 	 * @param string $name имя элемента
 	 * @param string $default значение по умолчанию
+	 * @return null|string
 	 */
 	public function getPar($name,$default=NULL){return $this->exists($name)?$this->par[$name]:$default;}
 
@@ -120,14 +121,16 @@ class CAmiEventItem {
 
 	public function getDst() {//ищем номер вызываемого абонента в параметрах ивента
 		if ($this->numeric('ConnectedLineNum'))	return $this->par['ConnectedLineNum'];
-		if ($this->numeric('Exten'))			return $this->par['Exten'];
+		if ($this->numeric('Exten'))				return $this->par['Exten'];
 		return NULL;
 	}
 
-	public function getChan() {//возвращает имя канала из параметров ивента //с учетом фильтра технологий соединения
-		//if ($this->exists('Channel')) // && (chanCKTech($this->getPar('Channel'))))
-			return $this->getPar('Channel');
-		//return NULL;
+	/**
+	 * возвращает имя канала из параметров ивента
+	 * @return null|string
+	 */
+	public function getChan() {
+		return $this->getPar('Channel');
 	}
 
 	public function getMonitor() {//возвращает имя файла записи звонка
@@ -201,11 +204,12 @@ class CAmiChannel {
 	private $reversed;	//в канале src и dst обратны относительно исходного звонка?
 	private $wasRinging;//признак того, что канал был ранее в состоянии Ringing, что подразумевает не прямое, а обратное направление вызовае
 	private $monitor;	//имя файла в который пишется запись
+	private $org;		//имя файла в который пишется запись
 
 	private $variables;	//канальные переменные
 	private $bridges;	//соединения с другими каналами
 	
-	/*
+	/**
 	 * возвращает сорс из имени канала
 	 * @param string $name имя канала
 	 * @return string источник звонка
@@ -220,7 +224,7 @@ class CAmiChannel {
 		return substr($name,$slash+1,$numend-$slash-1); //ищем номер звонящего абонента в имени канала
 	}
 	
-	/*
+	/**
 	 * возвращает технологию канала
 	 * @param string $name имя канала
 	 * @return string технолгия канала 
@@ -232,7 +236,7 @@ class CAmiChannel {
 		return substr($name,0,$slash);
 	}
 	
-	/*
+	/**
 	 * возвращает имя канала без технологии
 	 * @param string $name имя канала
 	 * @return string технолгия канала
@@ -244,7 +248,7 @@ class CAmiChannel {
 		return substr($name,$slash+1);
 	}
 	
-	/*
+	/**
 	 * заполняет все переменные, которые заполняются единожды из имени канала
 	 */
 	private function parseNames(){
@@ -256,11 +260,11 @@ class CAmiChannel {
 		$this->shortname=substr($this->type,0,1).'/'.$short;
 	}
 	
-	/*
+	/**
 	 * Возвращает значение переменной если такая в канале есть (иначе null)
 	 * @param string $name имя переменной
 	 * @param string $default значение, которое вернуть в случае отсутствия переменной
-	 * @return srtring значение или $default
+	 * @return string значение или $default
 	 */
 	public function getVar($name,$default=null){
 		return 
@@ -268,7 +272,7 @@ class CAmiChannel {
 			$this->variables[$name]:$default;
 	}
 	
-	/*
+	/**
 	 * Выставляет значение канальной переменной если есть что выставлять
 	 * @param string $name имя переменной
 	 * @param string $value значение переменной
@@ -276,21 +280,24 @@ class CAmiChannel {
 	public function setVar($name,$value){
 		if(strlen($name)&&strlen($value))$this->variables[$name]=$value;
 	}
-	
-	/*
-	 * Пытается отдать значение переменной, если ее в хранилище нет, 
-	 * то загружает из AMI значение переменной, 
-	 * в случае удачи кэширует в хранилище и отдает 
+
+	/**
+	 * Пытается отдать значение переменной, если ее в хранилище нет,
+	 * то загружает из AMI значение переменной,
+	 * в случае удачи кэширует в хранилище и отдает
 	 * @param string $name имя переменной
+	 * @param null $default
+	 * @return string
 	 */
 	public function fetchVar($name,$default=null){
-		if (is_null($this->getVar($name))){ 
+		if (is_null($this->getVar($name))){
+			msg($this->p().'fetching Var '.$name,3);
 			$this->setVar($name, $this->ami->get_chan_var($this->name,$name));
 		}
 		return $this->getVar($name,$default);
 	}
 	
-	/*
+	/**
 	 * Создает объект канала на основании события о нем
 	 * @param object $event
 	 */
@@ -309,7 +316,7 @@ class CAmiChannel {
 		$this->parseNames();
 	}
 
-	/*
+	/**
 	 * информация о канале одной строкой
 	 */
 	private function info()
@@ -340,7 +347,7 @@ class CAmiChannel {
 		return 'Ch('.$this->shortname.','.$this->info().'): ';
 	}
 	
-	/*
+	/**
 	 * текстовый дамп данных из файла
 	 */
 	public function dump(){
@@ -348,7 +355,7 @@ class CAmiChannel {
 	}
 	
 	
-	/*
+	/**
 	 * вертает номер звонящего абонента из имени канала, или CallerID
 	 */
 	private function selectSrc(&$evt)
@@ -360,13 +367,32 @@ class CAmiChannel {
 		return NULL;
 	}
 
-	
-	
+
+
 	public function getMonitorVar() {//возвращает имя файла записи звонка
-		if (is_null($recordfile=$this->fetchVar('Recordfile'))) return null;
-		$parts=explode(',',$recordfile);
-		$tokens=explode('/',$parts[count($parts)-1]);
-		return $tokens[count($tokens)-1];
+		//if (is_null($recordfile=$this->fetchVar('CallUUID'))) return null;
+		if (is_null($uuid=$this->fetchVar('CallUUID'))) return null;
+		//$parts=explode(',',$recordfile);
+		//$tokens=explode('/',$parts[count($parts)-1]);
+		return $uuid;
+	}
+
+	public function getOrgVar() {//возвращает имя файла записи звонка
+		//if (is_null($recordfile=$this->fetchVar('CallUUID'))) return null;
+		if (is_null($org=$this->fetchVar('CallOrg'))) return null;
+		//$parts=explode(',',$recordfile);
+		//$tokens=explode('/',$parts[count($parts)-1]);
+		return $org;
+	}
+
+	public function getMonitor() {//возвращает имя файла записи звонка
+		if (is_null($this->monitor)) if (is_null($this->monitor)) $this->monitor=$this->getMonitorVar();
+		return $this->monitor;
+	}
+
+	public function getOrg() {//возвращает имя файла записи звонка
+		if (is_null($this->org)) if (is_null($this->org)) $this->org=$this->getOrgVar();
+		return $this->org;
 	}
 
 	/**
@@ -382,13 +408,14 @@ class CAmiChannel {
 			
 		/* обновляем информацию всегда, когда есть что обновить (больше обновлений) */
 		if (!is_null($src=$this->selectSrc($evt)))	$this->src=$src; //ищем вызывающего
-		if (!is_null($dst=$evt->getDst())) 			$this->dst=$dst; //ищем вызываемого
-		if (!is_null($newstate=$evt->getState()))	$this->state=$newstate;//устанавливаем статус
+		if (!is_null($dst=$evt->getDst())) 				$this->dst=$dst; //ищем вызываемого
+		if (!is_null($newstate=$evt->getState()))		$this->state=$newstate;//устанавливаем статус
 		
 		//пугает меня этот вызов не зафлудить бы АМИ этимим запросами
 		if (is_null($this->monitor)) $this->monitor=$this->getMonitorVar();
-			
-		//проверяем что это не исходящий звонок начинающийся со звонка на аппарат звонящего
+		if (!is_null($this->monitor) && is_null($this->org)) $this->org=$this->getOrgVar();
+
+			//проверяем что это не исходящий звонок начинающийся со звонка на аппарат звонящего
 		//с демонстрацией callerID абонента куда будет совершен вызов, если снять трубку
 		//(костыль для обнаружения вызовов через call файлы)
 		$this->reversed=$this->reversed||$evt->isFakeIncoming();
@@ -468,6 +495,10 @@ class chanList {
 		}
 	}
 
+	/**
+	 * Отправляет данные об ивентах вызова внешним коннекторам
+	 * @param $data
+	 */
 	private function sendData($data)
 	{//подключаем внешний коннектор куда кидать обновления
 		if (isset($this->connector)) {
@@ -475,10 +506,31 @@ class chanList {
 			$this->connector->sendData($data);
 		}
 		else
-			msg($this->p().'External connector not attached! Cant send updates!');
+			msg($this->p().'External connector not attached! Cant send call updates!');
 	}
 
-	private function ringDirCheckData($chan) 
+	/**
+	 * Отправляет данные об ивентах каналов внешним коннекторам
+	 * @param array $data
+	 * @param CAmiChannel $chan
+	 */
+	private function sendChanData($data,$chan)
+	{//подключаем внешний коннектор куда кидать обновления
+		if (isset($this->connector)) {
+			//msg($this->p().'Sending data to connector.');
+			if (!empty($chan)) {
+				if (!isset($data['variables']))$data['variables']=[];
+				$data['variables']['monitor']=$chan->getMonitor();
+				$data['variables']['org']=$chan->getOrg();
+			}
+
+			$this->connector->sendChanData($data);
+		}
+		else
+			msg($this->p().'External connector not attached! Cant send chan updates!');
+	}
+
+	private function ringDirCheckData($chan)
 	{/*суть: в зависимости от статуса Ring или Ringing меняется смысл кто кому звонит
 	  * поэтому если вдруг у нас ringing, то мы меняем его на ring и меняем местами абонентов
 	  * таким образом всегда понятно что src -> dst, что проще*/
@@ -495,17 +547,17 @@ class chanList {
 	public function upd($par)
 	{//обновляем информацию о канале новыми данными
 		$evt=new CAmiEventItem($par);
-		if (strlen($cname=$evt->getChan())) //имя канала вернется если в пераметрах события оно есть и если канал при этом не виртуальный
+		if (strlen($cname=$evt->getChan())) //имя канала вернется если в пераметрах события оно есть (ну для канальных событий есть всегда)
 		{
 			//создаем канал если его еще нет в списке
-			if (!isset($this->list[$cname])) $this->list[$cname]=new CAmiChannel($evt, $this->ami);        
-	
+			if (!isset($this->list[$cname])) $this->list[$cname]=new CAmiChannel($evt, $this->ami);
+
 			//если обновление укомплетовало канал новыми данными
 			if ($this->list[$cname]->upd($evt))  {
-				//$this->dump($cname);   //сообщаем об этом радостном событии в консольку
-				//if (!strlen($this->list[$cname]['monitor'])) $this->list[$cname]['monitor']=$this->getMonitorHook($evt);
 				if ($this->list[$cname]->getType()!=='Local') $this->sendData($this->list[$cname]->getData());
 		 	}
+
+			$this->sendChanData($par,$this->list[$cname]);
 		} else {
 			msg($this->p().'Event ignored: channel not found ['.$cname.']:'.$evt->dump());
 		}
@@ -518,6 +570,8 @@ class chanList {
 		$evt=new CAmiEventItem($par);
 		if (strlen($cname=$evt->getChan())) //имя канала вернется если в пераметрах события оно есть и если канал при этом не виртуальный
 		{
+			$this->sendChanData($par,isset($this->list[$cname])?$this->list[$cname]:null);
+
 			if($evt->exists('Newname')) {//в нем есть новый канал?
 				$newchan=$evt->getPar('Newname');//создаем объект канала из нового канала
 				if (isset($this->list[$cname]))

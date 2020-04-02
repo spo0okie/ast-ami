@@ -45,7 +45,6 @@ class astConnector {
 		//нет смысла логировать тут, оно пото отлогируется в upd
 		//msg('Got evt '.dumpEvent($par)HANDLED_EVENTS_LOG_LEVEL); 
 
-		global $chans;
 		$this->chans->upd($par);
 		if (function_exists($this->defaultEvtHandler)) {
 			$handler=$this->defaultEvtHandler;
@@ -81,9 +80,9 @@ class astConnector {
 		msg($this->p.'Init AMI interface class ... ',1);
 			$this->astman = new AGI_AsteriskManager(null,$this->conParams);
 		msg($this->p.'Init AMI event handlers ... ',1);
-			$this->astman->add_event_handler('state',		array($this,'evt_def'));
-			$this->astman->add_event_handler('newexten',	array($this,'evt_def'));
-			$this->astman->add_event_handler('newstate',	array($this,'evt_def'));
+			$this->astman->add_event_handler('state',			array($this,'evt_def'));
+			$this->astman->add_event_handler('newexten',		array($this,'evt_def'));
+			$this->astman->add_event_handler('newstate',		array($this,'evt_def'));
 			$this->astman->add_event_handler('newcallerid',	array($this,'evt_def'));
 			$this->astman->add_event_handler('newchannel',	array($this,'evt_def'));
 			$this->astman->add_event_handler('hangup',		array($this,'evt_hangup'));
