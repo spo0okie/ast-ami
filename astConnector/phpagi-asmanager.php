@@ -36,8 +36,8 @@
   */
 
 
-	define('REQUESTS_LOG_LEVEL',6);			//уровень логирования для отображения запросов
-	define('RESPONCES_LOG_LEVEL',6);		//уровень логирования для отображения ответов
+	define('REQUESTS_LOG_LEVEL',3);			//уровень логирования для отображения запросов
+	define('RESPONSES_LOG_LEVEL',3);		//уровень логирования для отображения ответов
 	define('INFO_EVENTS_LOG_LEVEL',5);	    //уровень логирования для отображения полезных обрабатываемых событий
 	define('HANDLED_EVENTS_LOG_LEVEL',6);	//уровень логирования для отображения обрабатываемых событий
 	define('IGNORED_EVENTS_LOG_LEVEL',7);	//уровень логирования для отображения обрабатываемых но отброшенных событий
@@ -174,7 +174,7 @@
     private $_logged_in = FALSE;
 
 
-	private $socket_last_read=0;
+	//private $socket_last_read=0;
     
    /**
     * Constructor
@@ -182,7 +182,7 @@
     * @param string $config is the name of the config file to parse or a parent agi from which to read the config
     * @param array $optconfig is an array of configuration vars and vals, stuffed into $this->config['asmanager']
     */
-    function AGI_AsteriskManager($config=NULL, $optconfig=array())
+    function __construct($config=NULL, $optconfig=array())
     {
       // load config
       if(!is_null($config) && file_exists($config))
@@ -206,7 +206,6 @@
      * @return strin current status
      */
     function getStatus(){
-    	$cnt=count($this->events_queue);
     	if ($cnt=count($this->events_queue)) {
     		if ($cnt>1)
     			$cap='(caps:'.$this->events_queue[count($this->events_queue)-1]['uid'].','.$this->events_queue[count($this->events_queue)-2]['uid'].')';
@@ -357,7 +356,7 @@
 				$pos=count($this->events_queue);
 				$parameters['uid']=$this->events_count++;
 				if ($this->events_count>=10000) $this->events_count=0;
-				$this->log("Event queued (".$parameters['uid']."): ".dumpEvent($parameters,true),EVENTS_LOG_LEVEL);
+				$this->log("Event queued (".$parameters['uid']."): ".dumpEvent($parameters),EVENTS_LOG_LEVEL);
 				$this->events_queue[$pos]=$parameters;
 				break;
 			
@@ -365,10 +364,10 @@
 				if (isset($parameters['ActionID']))
 					$this->responses_heap[$parameters['ActionID']]=$parameters;
 				else{
-					$this->log('WARNING: Got respose with an empty Action ID! : ' . print_r($parameters, true));
+					$this->log('WARNING: Got response with an empty Action ID! : ' . print_r($parameters, true));
 					$this->responses_heap[]=$parameters;
 				}
-				$this->log("Response: ".dumpEvent($parameters,true),RESPONCES_LOG_LEVEL);
+				$this->log("Response: ".dumpEvent($parameters),RESPONSES_LOG_LEVEL);
 				break;
 			
 			default:
@@ -420,6 +419,7 @@
     			$this->read_message();
 			} while (count($this->events_queue));
 		}
+		return null;
     }
 
    /**
@@ -477,10 +477,10 @@
         $this->log("Asterisk Manager header not received.");
         return false;
       }
-      else
+      /*else
       {
         // note: don't $this->log($str) until someone looks to see why it mangles the logging
-      }
+      }*/
       //$this->log("Socket opened");
 
       // login
