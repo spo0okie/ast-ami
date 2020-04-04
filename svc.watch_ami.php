@@ -10,13 +10,13 @@
 //прикладные функции работы с логом файлами и проч. 
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'funcs.inc.php');	
 //библиотека работы с астериском
-require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . '/astConnector/phpagi.php');
+require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'astConnector' . DIRECTORY_SEPARATOR . 'phpagi.php');
 //класс коннекторов к получателям данных
-require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . '/dataConnectors/globDataConnector.php');
+require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'dataConnectors' . DIRECTORY_SEPARATOR . 'globDataConnector.php');
 //класс коннекторa к asterisk AMI
-require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . '/astConnector/astConnector.php');
+require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'astConnector' . DIRECTORY_SEPARATOR . 'astConnector.php');
 //класс управления списком каналов
-require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'class.chans.php');	
+require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'chanList.php');
 
 error_reporting(E_ALL);
 
@@ -56,6 +56,9 @@ $usage="Correct usage is:\n"
 
 	."- to translate to Web API use:"
 	."weburl:serv/ctl/     - Web API server address\n"
+
+	."- to translate chan_events to Web API use:"
+	."weburl_chan:serv/ctl/     - Web API server address\n"
 ;
 	
 if (!strlen($srvaddr=get_param('srvaddr'))) criterr($usage);
@@ -145,7 +148,16 @@ $DBconnector = new globDataConnector($globConnParams);
 $chans = new chanList($DBconnector);
 
 //Коннектор к AMI подключается к списку каналов чтобы передавать в него информацию о событиях поступающих от Asterisk
-$AMIconnector = new astConnector(array('server'=>$srvaddr,'port'=>$srvport,'username'=>$srvuser,'secret'=>$srvpass),$chans,'AMI_defaultevent_handler');
+$AMIconnector = new astConnector(
+	[
+		'server'=>$srvaddr,
+		'port'=>$srvport,
+		'username'=>$srvuser,
+		'secret'=>$srvpass
+	],
+	$chans,
+	'AMI_defaultevent_handler'
+);
 
 $p=basename(__FILE__).'('.$DBconnector->getType().'): '; //msg prefix
 
