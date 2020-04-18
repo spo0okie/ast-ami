@@ -7,10 +7,10 @@
  * - запись в БД Oracle
  * - запись в канал WebSockets (не проверялось давно, и с тех пор много кода поменялось) */
 
-//прикладные функции работы с логом файлами и проч. 
-require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'funcs.inc.php');	
 //библиотека работы с астериском
-require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'astConnector' . DIRECTORY_SEPARATOR . 'phpagi.php');
+require_once 'vendor/autoload.php';
+//прикладные функции работы с логом файлами и проч.
+require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'funcs.inc.php');	
 //класс коннекторов к получателям данных
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'dataConnectors' . DIRECTORY_SEPARATOR . 'globDataConnector.php');
 //класс коннекторa к asterisk AMI
@@ -118,7 +118,7 @@ $orgphone=get_param('orgphone');
 
 if (getCurrentProcs(basename(__FILE__).' '.get_agrv_str())>1 && $db_used) criterr('Runing second (and more) process with DB acces is forbidden.');
 
-function AMI_defaultevent_handler($evt, $par, $server=NULL, $port=NULL)
+function AMI_default_event_handler($evt, $par, $server=NULL, $port=NULL)
 {//обработчик всех прочих событий от астериска
  //на нем висит перезапись файла сердцебиения и перерисовка курсора в консольке
  //имя файла формируется по имени этого файла

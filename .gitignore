@@ -6,3 +6,6 @@
 priv.*
 #тестовые пакеты
 test.*
+vendor
+composer.phar
+composer.lock

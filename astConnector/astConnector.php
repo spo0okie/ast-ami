@@ -1,4 +1,15 @@
 <?php
+
+
+define('REQUESTS_LOG_LEVEL',3);			//уровень логирования для отображения запросов
+define('RESPONSES_LOG_LEVEL',3);		//уровень логирования для отображения ответов
+define('INFO_EVENTS_LOG_LEVEL',5);	    //уровень логирования для отображения полезных обрабатываемых событий
+define('HANDLED_EVENTS_LOG_LEVEL',6);	//уровень логирования для отображения обрабатываемых событий
+define('IGNORED_EVENTS_LOG_LEVEL',7);	//уровень логирования для отображения обрабатываемых но отброшенных событий
+define('EVENTS_LOG_LEVEL',8);			//уровень логирования всех событий
+
+
+
 class astConnector {
 	/**
 	 * @var AGI_AsteriskManager
@@ -109,23 +120,26 @@ class astConnector {
 	public function connect() {
 		msg($this->p.'Init AMI interface class ... ',1);
 			$this->astman = new AGI_AsteriskManager(null,$this->conParams);
+			$this->astman->log_handler='msg';
 		msg($this->p.'Init AMI event handlers ... ',1);
-			$this->astman->add_event_handler('state',			array($this,'evt_def'));
-			$this->astman->add_event_handler('newexten',		array($this,'evt_def'));
-			$this->astman->add_event_handler('newstate',		array($this,'evt_def'));
-			$this->astman->add_event_handler('newcallerid',	array($this,'evt_def'));
-			$this->astman->add_event_handler('newchannel',	array($this,'evt_def'));
-			$this->astman->add_event_handler('hangup',		array($this,'evt_hangup'));
-			$this->astman->add_event_handler('rename',		array($this,'evt_rename'));
+			//https://wiki.asterisk.org/wiki/display/AST/Asterisk+11+AMI+Events
+			$this->astman->add_event_handler('hangup',			array($this,'evt_hangup'));	//class CALL
+			$this->astman->add_event_handler('newcallerid',		array($this,'evt_def'));	//class CALL
+			$this->astman->add_event_handler('newchannel',		array($this,'evt_def'));	//class CALL
+			$this->astman->add_event_handler('newexten',		array($this,'evt_def'));	//class DIALPLAN
+			$this->astman->add_event_handler('newstate',		array($this,'evt_def'));	//class CALL
+			$this->astman->add_event_handler('rename',			array($this,'evt_rename'));	//class CALL
+			$this->astman->add_event_handler('state',			array($this,'evt_def')); 	//??
+			$this->astman->add_event_handler('*',				'AMI_default_event_handler');
 		msg($this->p.'Connecting AMI interface ... ');
 			if (!$this->astman->connect()) return false;
 		msg($this->p.'Switching AMI events ON ... ',1);
-			$this->astman->Events('on');
+			$this->astman->Events('call');
 		return true;
 	}
 
 	public function checkConnection() {
-		if (!$this->astman->socket_error) return true;
+		if (!$this->astman->socket->error()) return true;
 		msg ($this->p.'AMI socket error!');
 		return false;
 	}
