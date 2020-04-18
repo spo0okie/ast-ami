@@ -126,7 +126,7 @@ class astConnector {
 			$this->astman->add_event_handler('hangup',			array($this,'evt_hangup'));	//class CALL
 			$this->astman->add_event_handler('newcallerid',		array($this,'evt_def'));	//class CALL
 			$this->astman->add_event_handler('newchannel',		array($this,'evt_def'));	//class CALL
-			$this->astman->add_event_handler('newexten',		array($this,'evt_def'));	//class DIALPLAN
+			//$this->astman->add_event_handler('newexten',		array($this,'evt_def'));	//class DIALPLAN
 			$this->astman->add_event_handler('newstate',		array($this,'evt_def'));	//class CALL
 			$this->astman->add_event_handler('rename',			array($this,'evt_rename'));	//class CALL
 			$this->astman->add_event_handler('state',			array($this,'evt_def')); 	//??
