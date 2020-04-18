@@ -152,4 +152,8 @@ class astConnector {
 		$this->astman->disconnect();
 		unset ($this->astman);
 	}
+
+	public function astStatus() {
+		return is_object($this)?$this->astman->dump():'disconnected';
+	}
 }

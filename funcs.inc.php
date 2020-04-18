@@ -37,7 +37,7 @@
 		$sym=array('| ','/ ','- ','--',' -',' \\ ',' |',' /',' -','--','- ','\\ ');
 		if (!isset($conrotor_state)) $conrotor_state=0;
 		$conrotor_state %= count($sym);
-		echo $sym[($conrotor_state++)]."\r";
+		echo $sym[($conrotor_state++)]."       \r";
 	}
 	
 

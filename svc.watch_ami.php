@@ -130,6 +130,8 @@ function AMI_default_event_handler($evt, $par, $server=NULL, $port=NULL)
 	//но для понимания картины событий можно и глянуть время от времени
 	//msg('Got evt "'.$evt.'"');
 	//print_r($par);
+	global $AMIconnector;
+	echo is_object($AMIconnector)?$AMIconnector->astStatus():'uninitialized';
 	con_rotor();					//update con
 	pidWriteSvc(basename(__FILE__));//heartbeat file
 	//файл сердцебиения сервиса. 
