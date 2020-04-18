@@ -1,0 +1,11 @@
+{
+    "require": {
+        "spo0okie/phpagi": "^3.0"
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url":  "https://github.com/spo0okie/phpagi.git"
+        }
+    ]
+}
