@@ -60,8 +60,10 @@ class globDataConnector extends abstractDataConnector  {
 
 	public function checkConnection() {
 		//прекращаем проверку, если найден разрыв хоть в одном источнике данных, и переинциализируем все на всякий случай
-		foreach ($this->connectors as $conn) if (!$conn->checkConnection()) return false;
-		foreach ($this->chan_connectors as $conn) if (!$conn->checkConnection()) return false;
+		if (is_array($this->connectors))
+			foreach ($this->connectors as $conn) if (!$conn->checkConnection()) return false;
+		if (is_array($this->chan_connectors))
+			foreach ($this->chan_connectors as $conn) if (!$conn->checkConnection()) return false;
 		//иначе все хорошо
 		return true;
 	}
