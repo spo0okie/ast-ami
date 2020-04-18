@@ -45,7 +45,7 @@ class astConnector {
 		if (isset($response['Response']) && ($response['Response'] == 'Error')) {
 			if (isset($response['Message']) && ($response['Message'] == 'No such channel')) {
 				//если нам вернули ответ, что нет такого канала, то оч интересно посмотреть, что у нас вообще есть за каналы
-				$activeChans=$this->astman->Command('core show channels');
+				$activeChans=$this->astman->Command('core show channels concise');
 				msg('Chan '.$channel.' not found in '.print_r($activeChans,true),RESPONSES_LOG_LEVEL,1);
 			}
 		}
