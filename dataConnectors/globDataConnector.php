@@ -10,8 +10,8 @@ require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . '/abstractDataConnector.p
 
 class globDataConnector extends abstractDataConnector  {
 	private $p='globDataConnector: ';
-	private $connectors;
-	private $chan_connectors;
+	private $connectors=[];
+	private $chan_connectors=[];
 
 	public function __construct($conParams=null) {
 		msg($this->p.'Initializing ... ',2);
@@ -53,6 +53,7 @@ class globDataConnector extends abstractDataConnector  {
 
 	public function disconnect() {
 		msg($this->p.'Disconnecting data receivers ... ',2);
+		if (is_array($this->connectors))
 		foreach ($this->connectors as $conn) $conn->disconnect();
 		foreach ($this->chan_connectors as $conn) if (!$conn->disconnect()) return false;
 		msg($this->p.'Disconnecting data receivers - OK',2);
@@ -60,10 +61,8 @@ class globDataConnector extends abstractDataConnector  {
 
 	public function checkConnection() {
 		//прекращаем проверку, если найден разрыв хоть в одном источнике данных, и переинциализируем все на всякий случай
-		if (is_array($this->connectors))
-			foreach ($this->connectors as $conn) if (!$conn->checkConnection()) return false;
-		if (is_array($this->chan_connectors))
-			foreach ($this->chan_connectors as $conn) if (!$conn->checkConnection()) return false;
+		foreach ($this->connectors as $conn) if (!$conn->checkConnection()) return false;
+		foreach ($this->chan_connectors as $conn) if (!$conn->checkConnection()) return false;
 		//иначе все хорошо
 		return true;
 	}
