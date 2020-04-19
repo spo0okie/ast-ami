@@ -112,9 +112,10 @@ class CAmiEvent {
 
 	/**
 	 * возвращает имя файла записи звонка
-	 * @return null
+	 * @return null|string
 	 */
 	public function getMonitor() {
+		if (strlen($accCode=$this->getPar('AccountCode'))) return $accCode;
 		if ($this->getPar('Application')=='Monitor') {
 			$parts=explode(',',$this->getPar('AppData'))[1];
 			$tokens=explode('/',$parts);

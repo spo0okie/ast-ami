@@ -203,9 +203,16 @@ class CAmiChannel {
 	}
 
 
-
-	public function getMonitorVar() {//возвращает имя файла записи звонка
-		//if (is_null($recordFile=$this->fetchVar('CallUUID'))) return null;
+	/**
+	 * @param null|CAmiEvent $evt
+	 * @return null|string
+	 */
+	public function getMonitorVar(&$evt = null) {//возвращает имя файла записи звонка
+		//если передали событие, попробуем вытащить данные из него
+		if (!is_null($evt)) {
+			if (!is_null($uuid=$evt->getMonitor())) return $uuid;
+		}
+		//если не удалось - запрашиваем
 		if (is_null($uuid=$this->fetchVar('CallUUID'))) return null;
 		//$parts=explode(',',$recordFile);
 		//$tokens=explode('/',$parts[count($parts)-1]);
