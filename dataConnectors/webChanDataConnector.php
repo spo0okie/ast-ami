@@ -43,7 +43,7 @@ class webChanDataConnector extends webDataConnector  {
 		msg($this->p.'Data sent:' . $result);
 		*/
 
-		exec('curl --silent -X POST -d \''.$json_data.'\' http://'.$this->url.'/push &');
+		exec('curl --silent -X POST -d \''.$json_data.'\' http://'.$this->url.'/push  > /dev/null 2>/dev/null &');
 	}
 
 	public function getType() {return 'webChan';}
