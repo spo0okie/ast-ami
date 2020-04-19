@@ -251,7 +251,7 @@ class CAmiChannel {
 		if (!is_null($newState=$evt->getState()))		$this->state=$newState;//устанавливаем статус
 
 		//пугает меня этот вызов не зафлудить бы АМИ этимим запросами
-		if (is_null($this->monitor)) $this->monitor=$this->getMonitorVar();
+		if (is_null($this->monitor)) $this->monitor=$this->getMonitorVar($evt);
 		if (!is_null($this->monitor) && is_null($this->org)) $this->org=$this->getOrgVar();
 
 		//проверяем что это не исходящий звонок начинающийся со звонка на аппарат звонящего
