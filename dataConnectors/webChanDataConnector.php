@@ -27,9 +27,9 @@ class webChanDataConnector extends webDataConnector  {
 
 		$json_data=json_encode($data,JSON_FORCE_OBJECT);
 
-		/* //synchronous
 		msg($this->p.'Sending data:' . $json_data);
 
+		/* //synchronous
 		$options = [
 			'http' => [
 				'header'  => "Content-type: application/json\r\n",
