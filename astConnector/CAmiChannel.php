@@ -212,11 +212,11 @@ class CAmiChannel {
 		if (!is_null($evt)) {
 			if (!is_null($uuid=$evt->getMonitor())) return $uuid;
 		}
+
 		//если не удалось - запрашиваем
-		//if (is_null($uuid=$this->fetchVar('CallUUID'))) return null;
-		//$parts=explode(',',$recordFile);
-		//$tokens=explode('/',$parts[count($parts)-1]);
-		//return $uuid;
+		if (!is_null($uuid=$this->fetchVar('CallUUID'))) return $uuid;
+
+		return null;
 	}
 
 	/**
