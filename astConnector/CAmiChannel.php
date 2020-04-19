@@ -213,10 +213,10 @@ class CAmiChannel {
 			if (!is_null($uuid=$evt->getMonitor())) return $uuid;
 		}
 		//если не удалось - запрашиваем
-		if (is_null($uuid=$this->fetchVar('CallUUID'))) return null;
+		//if (is_null($uuid=$this->fetchVar('CallUUID'))) return null;
 		//$parts=explode(',',$recordFile);
 		//$tokens=explode('/',$parts[count($parts)-1]);
-		return $uuid;
+		//return $uuid;
 	}
 
 	/**
@@ -226,10 +226,10 @@ class CAmiChannel {
 	public function getOrgVar(&$evt = null) {//возвращает организацию вызова
 		//если передали событие, попробуем вытащить данные из него
 		if (!is_null($evt)) {
-			if (!is_null($uuid=$evt->getOrg())) return $uuid;
+			if (!is_null($org=$evt->getOrg())) return $org;
 		}
-		if (is_null($org=$this->fetchVar('CallOrg'))) return null;
-		return $org;
+		//if (is_null($org=$this->fetchVar('CallOrg'))) return null;
+		//return $org;
 	}
 
 	public function getMonitor() {//возвращает имя файла записи звонка
