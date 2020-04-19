@@ -219,7 +219,15 @@ class CAmiChannel {
 		return $uuid;
 	}
 
-	public function getOrgVar() {//возвращает организацию вызова
+	/**
+	 * @param null|CAmiEvent $evt
+	 * @return null|string
+	 */
+	public function getOrgVar(&$evt = null) {//возвращает организацию вызова
+		//если передали событие, попробуем вытащить данные из него
+		if (!is_null($evt)) {
+			if (!is_null($uuid=$evt->getOrg())) return $uuid;
+		}
 		if (is_null($org=$this->fetchVar('CallOrg'))) return null;
 		return $org;
 	}
@@ -252,7 +260,7 @@ class CAmiChannel {
 
 		//пугает меня этот вызов не зафлудить бы АМИ этимим запросами
 		if (is_null($this->monitor)) $this->monitor=$this->getMonitorVar($evt);
-		if (!is_null($this->monitor) && is_null($this->org)) $this->org=$this->getOrgVar();
+		if (!is_null($this->monitor) && is_null($this->org)) $this->org=$this->getOrgVar($evt);
 
 		//проверяем что это не исходящий звонок начинающийся со звонка на аппарат звонящего
 		//с демонстрацией callerID абонента куда будет совершен вызов, если снять трубку
