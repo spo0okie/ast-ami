@@ -27,6 +27,7 @@ class webChanDataConnector extends webDataConnector  {
 
 		$json_data=json_encode($data,JSON_FORCE_OBJECT);
 
+		/* //synchronous
 		msg($this->p.'Sending data:' . $json_data);
 
 		$options = [
@@ -40,6 +41,9 @@ class webChanDataConnector extends webDataConnector  {
 		$context  = stream_context_create($options);
 		$result = file_get_contents('http://'.$this->url.'/push', false, $context);
 		msg($this->p.'Data sent:' . $result);
+		*/
+
+		exec('curl -X POST -d '.$json_data.' http://'.$this->url.'/push &');
 	}
 
 	public function getType() {return 'webChan';}

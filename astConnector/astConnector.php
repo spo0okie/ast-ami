@@ -1,8 +1,8 @@
 <?php
 
 
-define('REQUESTS_LOG_LEVEL',3);			//уровень логирования для отображения запросов
-define('RESPONSES_LOG_LEVEL',3);		//уровень логирования для отображения ответов
+define('REQUESTS_LOG_LEVEL',5);			//уровень логирования для отображения запросов
+define('RESPONSES_LOG_LEVEL',5);		//уровень логирования для отображения ответов
 define('INFO_EVENTS_LOG_LEVEL',5);	    //уровень логирования для отображения полезных обрабатываемых событий
 define('HANDLED_EVENTS_LOG_LEVEL',6);	//уровень логирования для отображения обрабатываемых событий
 define('IGNORED_EVENTS_LOG_LEVEL',7);	//уровень логирования для отображения обрабатываемых но отброшенных событий
@@ -46,7 +46,7 @@ class astConnector {
 			if (isset($response['Message']) && ($response['Message'] == 'No such channel')) {
 				//если нам вернули ответ, что нет такого канала, то оч интересно посмотреть, что у нас вообще есть за каналы
 				$activeChans=$this->astman->Command('core show channels concise');
-				msg('Chan '.$channel.' not found in '.print_r($activeChans,true),RESPONSES_LOG_LEVEL,1);
+				msg('Chan '.$channel.' not found in '.print_r($activeChans['data'],true),RESPONSES_LOG_LEVEL,1);
 			}
 		}
 		return isset($response['Value'])?$response['Value']:null;
