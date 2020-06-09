@@ -116,12 +116,12 @@ class CAmiEvent {
 	 */
 	public function getMonitor() {
 		if (strlen($accCode=$this->getPar('AccountCode'))) {
-			$tokens=explode('/',$accCode);
+			$tokens=explode('\\',$accCode);
 			if (count($tokens)>1) return $tokens[1];
 		}
 		if ($this->getPar('Application')=='Monitor') {
 			$parts=explode(',',$this->getPar('AppData'))[1];
-			$tokens=explode('/',$parts);
+			$tokens=explode('\\',$parts);
 			return $tokens[count($tokens)-1];
 		}
 		return NULL;
@@ -133,7 +133,7 @@ class CAmiEvent {
 	 */
 	public function getOrg() {
 		if (strlen($accCode=$this->getPar('AccountCode'))) {
-			$tokens=explode('/',$accCode);
+			$tokens=explode('\\',$accCode);
 			if (is_array($tokens)) return $tokens[0];
 		}
 		return NULL;
