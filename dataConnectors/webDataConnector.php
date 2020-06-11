@@ -33,7 +33,12 @@ class webDataConnector extends abstractDataConnector  {
 	}
 
 	public function checkConnection() {
-		return true;
+		//если таймаут с последней проверки не прошел, то не проверяем на самом деле
+		if (
+			!empty($this->lastConnectionCheck) &&
+			(time()-$this->lastConnectionCheck) < $this->connectionCheckTimeout
+		) return true;
+
 		$req='http://'.$this->url.'/test';
 		$response=file_get_contents($req);
 		msg($this->p.'Checking '.$req.', Got: '.$response,5);
@@ -45,7 +50,13 @@ class webDataConnector extends abstractDataConnector  {
 			msg($this->p.'Web API lost connection (short response): '.$response);
 			return false;
 		} //ответ должен содержать ОК:
-		return (strcmp(substr($response,0,3),'OK:')==0); //если ответ начинается на ОК, то и славно
+
+		if (strcmp(substr($response,0,3),'OK:')==0) {
+			$this->lastConnectionCheck=time();
+			msg($this->p.'Web API connection check: '.$response,5);
+			return true; //если ответ начинается на ОК, то и славно
+		} return false;
+
 	}
 
 	public function sendData($data) {

@@ -14,6 +14,9 @@
 
 abstract class abstractDataConnector {
 
+	protected $connectionCheckTimeout=40;
+	protected $lastConnectionCheck=null;
+
 	/*инициировать коннектор с передачей массива с учетными данными*/
 	abstract public function __construct($conParams=null);
 

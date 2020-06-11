@@ -16,6 +16,9 @@ class astConnector {
 	 */
 	private $astman;		//AGI manager
 
+	protected $connectionCheckTimeout=70;
+	protected $lastConnectionCheck=null;
+
 	private $conParams;
 	private $defaultEvtHandler;
 
@@ -87,6 +90,7 @@ class astConnector {
 
 		//нет смысла логировать тут, оно потом отлогируется в upd
 		//msg('Got evt '.dumpEvent($par)HANDLED_EVENTS_LOG_LEVEL); 
+		$this->lastConnectionCheck = time();
 
 		$this->chans->upd($par);
 		if (function_exists($this->defaultEvtHandler)) {
@@ -97,6 +101,8 @@ class astConnector {
 
 	public function evt_rename($evt,$par)
 	{//обработчик события о переименовании канала
+		$this->lastConnectionCheck = time();
+
 		$this->chans->ren($par);
 		if (function_exists($this->defaultEvtHandler)) {
 			$handler=$this->defaultEvtHandler;
@@ -109,6 +115,8 @@ class astConnector {
 		//(обновление статуса для передачи в БД самым дешевым способом)
 		$par['ChannelStateDesc']='Hangup'; //подсовываем обновление канала фейковым статусом окончания разговора
 		//обновляем канал
+		$this->lastConnectionCheck = time();
+
 		$this->chans->upd($par);
 		$this->chans->ren($par);
 		if (function_exists($this->defaultEvtHandler)) {
@@ -127,10 +135,10 @@ class astConnector {
 			$this->astman->add_event_handler('newcallerid',		array($this,'evt_def'));	//class CALL
 			$this->astman->add_event_handler('newchannel',		array($this,'evt_def'));	//class CALL
 			//$this->astman->add_event_handler('newexten',		array($this,'evt_def'));	//class DIALPLAN
-			$this->astman->add_event_handler('newstate',		array($this,'evt_def'));	//class CALL
+			$this->astman->add_event_handler('newstate',			array($this,'evt_def'));	//class CALL
 			$this->astman->add_event_handler('rename',			array($this,'evt_rename'));	//class CALL
-			$this->astman->add_event_handler('state',			array($this,'evt_def')); 	//??
-			$this->astman->add_event_handler('*',				'AMI_default_event_handler');
+			$this->astman->add_event_handler('state',				array($this,'evt_def')); 	//??
+			$this->astman->add_event_handler('*',					'AMI_default_event_handler');
 		msg($this->p.'Connecting AMI interface ... ');
 			if (!$this->astman->connect()) return false;
 		msg($this->p.'Switching AMI events ON ... ',1);
@@ -139,13 +147,25 @@ class astConnector {
 	}
 
 	public function checkConnection() {
-		if (!$this->astman->socket->error()) return true;
-		msg ($this->p.'AMI socket error!');
-		return false;
+		if (empty($this->lastConnectionCheck)) $this->lastConnectionCheck = time();
+
+		if ($this->astman->socket->error()) {
+			msg ($this->p.'AMI socket error!');
+			return false;
+		}
+
+		if ((time()-$this->lastConnectionCheck) > $this->connectionCheckTimeout) {
+			msg ($this->p.'DATA timeout error');
+			return false;
+		}
+
+		return true;
 	}
 
 	public function waitResponse() {
-		return $this->astman->wait_response();
+		$response = $this->astman->wait_response();
+		$this->lastConnectionCheck=time();
+		return $response;
 	}
 
 	public function disconnect() {
