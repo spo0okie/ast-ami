@@ -147,7 +147,10 @@ class astConnector {
 	}
 
 	public function checkConnection() {
-		if (empty($this->lastConnectionCheck)) $this->lastConnectionCheck = time();
+		if (empty($this->lastConnectionCheck)) {
+		    $this->lastConnectionCheck = time();
+            msg ($this->p.'AMI data watchdog init');
+        }
 
 		if ($this->astman->socket->error()) {
 			msg ($this->p.'AMI socket error!');
