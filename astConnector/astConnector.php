@@ -147,16 +147,20 @@ class astConnector {
 	}
 
 	public function checkConnection() {
+	    //если у нас нет последней удачной проверки соединения то пусть она сейчас
 		if (empty($this->lastConnectionCheck)) {
 		    $this->lastConnectionCheck = time();
             msg ($this->p.'AMI data watchdog init');
         }
 
+		//если у нас очевидная проблема, то сообщаем об этом
 		if ($this->astman->socket->error()) {
 			msg ($this->p.'AMI socket error!');
 			return false;
 		}
 
+		//Если таймаут последней успешной проверки (время последней успешной проверки обновляется в )
+        //то сообщаем ошибку
 		if ((time()-$this->lastConnectionCheck) > $this->connectionCheckTimeout) {
 			msg ($this->p.'DATA timeout error');
 			return false;
@@ -166,9 +170,7 @@ class astConnector {
 	}
 
 	public function waitResponse() {
-		$response = $this->astman->wait_response();
-		$this->lastConnectionCheck=time();
-		return $response;
+		return $this->astman->wait_response();
 	}
 
 	public function disconnect() {

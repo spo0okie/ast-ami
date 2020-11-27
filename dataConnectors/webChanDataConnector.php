@@ -24,7 +24,7 @@ class webChanDataConnector extends webDataConnector  {
 	}
 
 	public function sendData($data) {
-
+		if (isset($data['Privilege'])) unset($data['Privilege']);
 		$json_data=json_encode($data,JSON_FORCE_OBJECT);
 
 		msg($this->p.'Sending data:' . $json_data);
@@ -43,7 +43,14 @@ class webChanDataConnector extends webDataConnector  {
 		msg($this->p.'Data sent:' . $result);
 		*/
 
-		exec('curl --silent -X POST -d \''.$json_data.'\' http://'.$this->url.'/push  > /dev/null 2>/dev/null &');
+		if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+			$devNull='NUL';
+		} else {
+			$devNull='/dev/null';
+		}
+
+		exec('curl --silent -X POST -d \''.$json_data.'\' http://'.$this->url.'/push  -o /var/log/asterisk/ast-ami-curl.log > '.$devNull.' 2> '.$devNull.' &');
+		//exec('curl --silent -X POST -d \''.$json_data.'\' http://'.$this->url.'/push -o c:\\wamp\\logs\\ast-ami-curl.log &');
 	}
 
 	public function getType() {return 'webChan';}
