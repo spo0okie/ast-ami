@@ -141,7 +141,9 @@ class astConnector {
 			$this->astman->add_event_handler('*',					'AMI_default_event_handler');
 		msg($this->p.'Connecting AMI interface ... ');
 			if (!$this->astman->connect()) return false;
-		msg($this->p.'Switching AMI events ON ... ',1);
+            $this->lastConnectionCheck = time();
+
+        msg($this->p.'Switching AMI events ON ... ',1);
 			$this->astman->Events('call');
 		return true;
 	}
