@@ -185,9 +185,15 @@ while (true) {
 			msg($p.'Loop exited. ');
 			$DBconnector->disconnect();
 
-		} else msg ($p.'Err connecting data recivers');
+		} else {
+		    msg ($p.'Err connecting data recivers');
+		    exit(10); //прибиваем процесс полностью, т.к. творится загадочная хрень
+        }
 
-	} else msg ($p.'Err connecting AMI.');
+	} else {
+	    msg ($p.'Err connecting AMI.');
+        exit(12); //прибиваем процесс полностью, т.к. творится загадочная хрень
+    }
 
 	$AMIconnector->disconnect();
 
